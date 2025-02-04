@@ -1,0 +1,159 @@
+* Benchmark analyzer
+
+This is the (start of) a little command line tool to analyze benchmark results from
+our automated benchmark CI.
+
+At the moment <2025-02-04 Tue 18:16> the tool receives the path to a
+CSV file with benchmark results for different VM versions. It proceeds
+to perform a fit of choice (currently either a linear function or a
+log-linear function) and produces plots with the fitted
+function. Further, the fit results are both printed to the terminal as
+well as written to a log file.
+
+** Usage
+
+The basic usage looks like:
+#+begin_src sh
+./benchmark_analyzer -f <input_csv>
+#+end_src
+
+but multiple optional arguments are supported:
+#+begin_src sh :dir ~/src/lita/benchmark_analyzer/ :results drawer
+NO_COLOR=true ./benchmark_analyzer -h
+#+end_src
+
+#+begin_src 
+Usage:
+  benchmark_analyzer [optional-params] 
+Options:
+  -h, --help                            print this cligen-erated help
+  
+  --help-syntax                         advanced: prepend,plurals,..
+  
+  -f=, --fname=    string      ""       Input CSV file with benchmarking
+                                        results.
+  
+  -p=, --plotPath= string      "/tmp"   Path to where the plot files are written
+                                        to.
+  
+  -l=, --logPath=  string      "./logs" Path to where the log file is written to.
+                                        CURRENTLY IGNORED.
+  
+  --log10          bool        false    If true all plots will be log10.
+  
+  --fitFunc=       FitFunction logLin   Function used for fitting.
+#+end_src
+
+The two supported models are ~linear~ \(f(x) = a·x + b\) and ~logLin~
+\(f(x) = a·x·\ln(x) + b·x + c\).
+
+By default (and currently always) the log file is written to
+[[./logs/benchmark_analyzer.log]]. It contains output of the form:
+
+#+begin_src
+[17:45:14] - INFO: Fitting data for: 8/9/24 -- Main trace size (field elements) against Max space (kB)
+[17:45:14] - INFO: Fit result for fit function:
+[17:45:14] - INFO: 	`result = p[0] * x + p[1]`
+[17:45:14] - INFO: ------------------------------
+  χ²      = 864.779    (4 DOF)
+  χ²/dof  = 216.195
+  NPAR    = 3
+  NFREE   = 3
+  NPEGGED = 0
+  NITER   = 3
+  NFEV    = 14
+  P[0] = 0.0691786 +/- 0.00095791
+  P[1] = 2886.51   +/- 274.384
+  P[2] = 1         +/- 0e+00
+[17:45:14] - INFO: ------------------------------
+[17:45:14] - INFO: Fitting data for: 8/9/24 -- Permutation trace size (extension field elements) against Max space (kB)
+[17:45:14] - INFO: Fit result for fit function:
+[17:45:14] - INFO: 	`result = p[0] * x + p[1]`
+[17:45:14] - INFO: ------------------------------
+  χ²      = 906.715    (4 DOF)
+  χ²/dof  = 226.679
+  NPAR    = 3
+  NFREE   = 3
+  NPEGGED = 0
+  NITER   = 3
+  NFEV    = 14
+  P[0] = 0.409423 +/- 0.00569218
+  P[1] = -17124.8 +/- 459.657
+  P[2] = 1        +/- 0e+00
+[17:45:14] - INFO: ------------------------------
+#+end_src
+
+Many plots are generated and stored in ~plotPath~. We generate:
+- individual plots
+  - of the raw data of each trace against each metric (user time, real
+    time, space)
+  - of the data and its fit against each metric with the fit
+    parameters embedded into the figure
+- combined plots
+  - for each metric a grid of each trace with the fit parameters. For
+    the moment these do not include fit results, as it would be a bit
+    too crowded (we can decide to add specific information that we
+    deem important).
+
+An example for an individual fit result (linear function):
+
+[[./media/Main__permutation_trace_size__field_elements__1_23_25_with_fit.svg]]
+
+An example for a combined grid plot of all traces for a single metric
+(log-linear function):
+
+[[./media/all_traces_Max_space__kB__with_fit.svg]]
+
+** Important notes
+
+- currently the uncertainties for the metric (time or space) are
+  hardcoded to 3% of the value. This does not really have any
+  foundation! We need statistics to estimate realistic numbers!
+- starting parameters are just taken to ~1~ in all parameters. The
+  underlying Levenberg-Marquardt non-linear least squares library used
+  under the hood, [[https://pages.physics.wisc.edu/~craigm/idl/cmpfit.html][mpfit]], generally does a good job of finding good
+  starting parameters. 
+
+** Input data
+
+At the moment the input data needs to be a CSV file with the following
+layout:
+
+| VM version | Main trace size (field elements) | Permutation trace size (extension field elements) | Main + permutation trace size (field elements) | User time (s) | Real time (s) | Max space (kB) | Program |
+|------------+----------------------------------+---------------------------------------------------+------------------------------------------------+---------------+---------------+----------------+---------|
+| 1/23/25    |                        115018933 |                                          18673001 |                                      208383938 |         99.76 |         12.36 |        7555632 | Rec23   |
+| 1/23/25    |                         28806325 |                                           4713833 |                                       52375490 |         24.51 |          3.07 |        1971396 | Rec20   |
+| ...        |                              ... |                                               ... |                                            ... |           ... |           ... |            ... | ...     |
+| 8/9/24     |                        115018933 |                                          18673001 |                                      208383938 |           139 |         11.91 |        7010096 | Rec23   |
+| 8/9/24     |                         28806325 |                                           4713833 |                                       52375490 |         59.07 |          4.87 |        3449008 | Rec20   |
+| ...        |                              ... |                                               ... |                                            ... |           ... |           ... |            ... | ...     |
+
+The name of the columns is currently defined by constants at the top
+of the file here:
+
+*INSERT LINK*
+
+but can be easily changed to be adjusted either as command line
+arguments or using a config file.
+
+*** Sample data
+
+The ~resources~ directory contains a data file based on the data from
+here:
+
+https://github.com/lita-xyz/valida-toolchain/issues/825#issuecomment-2631329397
+
+
+** Possible future features
+
+We can imagine to add a lot of interesting features in the future:
+- more detailed reporting of fit results (covariance matrix, ...)
+- automatic report generation beyond a log file
+- highlighting of outliers
+- generation of structured output data for further processing by
+  another tool (e.g. for immediate reporting of performance
+  regressions)
+- statistical analyses of aggregates of multiple benchmark runs once
+  we have statistics
+- bootstrap resampling of existing data  
+- and probably lots more...  
