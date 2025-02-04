@@ -131,7 +131,7 @@ layout:
 The name of the columns is currently defined by constants at the top
 of the file here:
 
-*INSERT LINK*
+https://github.com/lita-xyz/benchmark-analyzer/blob/master/benchmark_analyzer.nim#L4-L11
 
 but can be easily changed to be adjusted either as command line
 arguments or using a config file.
