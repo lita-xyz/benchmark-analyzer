@@ -104,6 +104,36 @@ An example for a combined grid plot of all traces for a single metric
 
 [[./media/all_traces_Max_space__kB__with_fit.svg]]
 
+** Build instructions
+
+For the moment building the tool requires one to:
+1. install a recent version of Nim (as of writing
+   <2025-02-04 Tue 18:43> 2.2 is the latest release). You can follow
+   the installation instructions on the [[https://nim-lang.org/][Nim website]].
+2. install the ~ggplotnim~ dependencies (~libcairo~) following your
+   operating system's [[https://www.cairographics.org/download/][instructions to install]] (if there was a Windows
+   user for this tool, follow [[https://github.com/Vindaar/ggplotnim/?tab=readme-ov-file#windows][this]]).
+3. manually install the 3 dependencies:
+   #+begin_src
+nimble install ggplotnim cligen nim-mpfit
+   #+end_src
+4. build the C shared library of [[https://pages.physics.wisc.edu/~craigm/idl/cmpfit.html][mpfit]], follow the instructions here:
+   https://github.com/Vindaar/nim-mpfit?tab=readme-ov-file#dependencies--installation
+5. build the binary of the tool (produces the binary
+   ~benchmark_analyzer~ in the directory of this repo):
+   #+begin_src sh
+nim c -d:release benchmark_analyzer
+   #+end_src
+6. (optional) add the directory of the repo to your ~PATH~, move the
+   binary or create a symlink of your choice.
+
+*NOTE*: I will turn this into a ~nimble~ project with a lock file for
+dependencies. The reason I haven't done that so far is that the
+~mpfit~ dependency currently requires manual work by the user.
+My current plan is to either automate the ~mpfit~ build process or
+replace ~mpfit~ by a native Nim implementation (nowadays we have a
+Levenberg-Marquardt implementation in [[https://github.com/SciNim/numericalnim/blob/master/src/numericalnim/optimize.nim#L610-L669][numericalnim]]).
+
 ** Important notes
 
 - currently the uncertainties for the metric (time or space) are
