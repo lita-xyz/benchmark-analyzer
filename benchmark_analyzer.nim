@@ -1,15 +1,27 @@
-import std / [strformat, sequtils, tables, strutils, logging, os, macros]
+import std / [strformat, sequtils, tables, strutils, logging, os, macros, stats, strscans, times, options]
 import ggplotnim, mpfit
+
+import std / json # for easier printing of data to log files
+
+from seqmath import median
 
 const VMver = "VM version"
 const Program = "Program"
 const MainTrace = "Main trace size (field elements)"
 const PermTrace = "Permutation trace size (extension field elements)"
 const MPTrace = "Main + permutation trace size (field elements)"
-const UTime = "User time (s)"
-const RTime = "Real time (s)"
+#const UTime = "User time (s)"
+#const RTime = "Real time (s)"
 const Space = "Max space (kB)"
 
+
+const TestName = "Test Name" ## column containing name of the bench in the raw files
+const Iter = "Iteration" ## column containing the iteration index
+const RTime = "Real Time" ## column containing the real time the program ran
+const UTime = "User Time" ## column containing the real time the program ran
+const Memory = "Memory (MB)" ## column containing used memory by the program
+
+## XXX: Make the log file dependent on the input file to map to that?
 const LogFile {.strdefine.} = "./logs/benchmark_analyzer.log"
 
 macro getBody(fn: typed): untyped =
@@ -31,6 +43,11 @@ type
     ffLogPlusLin = "logLin"
     ffLinear = "linear"
 
+  LogVerbosity = enum
+    lvQuiet,   ## No log (not implemented yet)
+    lvDefault, ## Regular log file
+    lvVerbose  ## Extra verbose log, e.g. contains calculated metrics etc.
+
   ## Context object storing the user settings
   Config = object
     fname: string ## Path to the CSV file containing benchmark results
@@ -38,10 +55,65 @@ type
     logPath: string = "./logs"
     log10: bool = false
     fitFunc: FitFunction = ffLogPlusLin
+    raw: bool = false ## Indicates input is raw data
+    logVerbosity = lvDefault  ##
+
+    # Parameters of the data files
+    testCol: string = TestName
+    iterCol: string = Iter
+    rTimeCol: string = RTime
+    uTimeCol: string = UTime
+    memCol: string = Memory
+
+    # Stats config
+    outlierThr: float = 3.0 ## threshold in standard deviations a point needs to be away from mean to count as an outlier
+                            ## i.e. `3.0` implies a point needs to be 3σ away from the mean.
 
   Model = object
     fn: FuncProto[float]
     body: string ## stringified version of the function body
+
+  ## Statistics about a specific metric. This can be 'Real Time', 'User Time', 'Memory', ...
+  MetricStats = object
+    raw: seq[float]   ## the raw data values
+    min, max: float
+    mean, median: float
+    stdS: float       ## *sample* standard deviation
+    outlierThr: float ## threshold in standard deviations a point needs to be away from mean to count as an outlier
+                      ## i.e. `3.0` implies a point needs to be 3σ away from the mean. Set via `Config` field of same name.
+    thrMin: float ## Lower threshold for outlier detection
+    thrMax: float ## Upper threshold for outlier detection
+    outliers: int     ## number of outliers
+    # whatever else we might want to add?
+
+  ## A set of *known* benchmarks. Their string value corresponds to the substring that must be contained
+  ## in the `TestName` column string.
+  ## For some tests the string might be a string to be used with `strscans`
+  BenchmarkKind = enum
+    bkUnknown = ""
+    bkRecursiveFibonacci = "Fib$i Rec"
+    bkIterFibonacci = "Fib$i Iter"
+    bkSha = "SHA$i"
+    bkKeccak = "Keccak$i"
+
+  ProgrammingLanguage = enum
+    plC = "C"
+    plRust = "Rust"
+
+  ## stores information for a single bench?
+  Benchmark = object
+    name: string ## name of the benchmark program
+    isSerial: bool ## Whether the bench is a serial bench
+    lang: ProgrammingLanguage ## Language the bench is written in
+    bench: BenchmarkKind ## Set of *known* benchmark kinds. If it is known we can merge multiple different
+                             ## benchmarks of the same kind with different sizes
+    size:      int ## Some benchmarks include size information in their name, e.g. `Fib6`, `Keccak500` etc
+    traceSize: int ## Size of the main trace + permutation trace of this program
+    rTimes: MetricStats
+    uTimes: MetricStats
+    mem: MetricStats
+
+  BenchTable = Table[string, Benchmark] # maps each benchmark (based on the `TestName` column value) to the `Benchmark` data
 
 var cLog = newConsoleLogger(fmtStr = "[$time] - $levelname: ")
 createDir(LogFile.parentDir) # create `logs` dir if it does not exist
@@ -240,20 +312,121 @@ proc plotFitAllTraces(cfg: Config, df: DataFrame, yCol: string) =
     xlab("Trace size") +
     ggsave(&"{cfg.plotPath}/all_traces_{yCol.sanitize()}_with_fit.pdf")
 
+
+func aggregate(cfg: Config, s: seq[float]): MetricStats =
+  var rs: RunningStat
+  rs.push s
+
+  # compute threshold values (lower and upper)
+  let mean = rs.mean
+  let stdS = rs.standardDeviationS
+  let thrMin = mean - stdS * cfg.outlierThr
+  let thrMax = mean + stdS * cfg.outlierThr
+
+  let outliersLow = s.filterIt(it < thrMin).len
+  let outliersHih = s.filterIt(it > thrMax).len
+
+  result = MetricStats(raw: s,
+                       min: rs.min, max: rs.max,
+                       mean: mean, median: s.median,
+                       stdS: stdS,
+                       outlierThr: cfg.outlierThr,
+                       thrMin: thrMin, thrMax: thrMax,
+                       outliers: outliersLow + outliersHih)
+
+func removeSuffix(x, suf: string): string =
+  # out-of-place version of `removeSuffix`
+  result = x
+  result.removeSuffix(suf)
+
+proc parseDateCommit(fname: string): (Time, string) =
+  ## NOTE: The commit is matched via `$+.`. This means for raw input
+  ## files it will include the `_raw` portion. We need to remove that
+  const validaStr = "valida-$i-$i-$i-$i-$i-$+.csv"
+  # bizarrely, if we leave out the tuple type here the compiler deduces all
+  # elements to be of type `Hash`?!
+  let (success,
+       month, day, year,
+       hour, minute,
+       hash): (bool, int, int, int, int, int, string) = scanTuple(fname.extractFilename, validaStr)
+  if not success:
+    raiseAssert "Could not parse date and commit hash from input file: " & $fname
+  result = (initDateTime(day.Monthdayrange, month.Month, year,
+                         hour.HourRange, minute.MinuteRange, 00, 00, utc()).toTime(),
+            hash.removeSuffix("_raw"))
+
+
+import ./utils
+proc extractInfoFromName(name: string): Benchmark =
+  let isSerial = ("Serial" in name) or not ("Parallel" in name)
+  ## NOTE: Assumption (!) the programming language is in "field" index 1, i.e. `Valida <ProgLang> ...`
+  let fields = name.split()
+  let lang = parseEnum[ProgrammingLanguage](fields[1])
+
+  # try to match the benchmark kind
+  proc getBenchKind(name: string): (BenchmarkKind, int) =
+    staticFor el, strVal, BenchmarkKind:
+      const str = "$*" & strVal
+      when el != bkUnknown: # so that we return `bkUnknown` by default
+        let (success, _, x) = scanTuple(name, str) # `_` to skip things matched by `$*`
+        if success:
+          return (el, x)
+  let (bench, size) = getBenchKind(name)
+
+  result = Benchmark(name: name,
+                     isSerial: isSerial,
+                     lang: lang,
+                     bench: bench,
+                     size: size)
+
+proc processRawData(cfg: Config, fname: string): BenchTable =
+  let rawDf = readCsv(fname)
+
+  # 1. parse date and commit
+  let (date, commit) = parseDateCommit(fname)
+
+  info &"Processing raw data of commit: {commit} benched on {date}"
+
+  # iterate over groups of all tests
+  for (tup, subDf) in groups(rawDf.group_by(cfg.testCol)):
+    # 1. compute aggregate statistics
+    let name = tup[0][1].toStr
+    info &"Computing aggregate data for: {name}"
+    let rTimes = cfg.aggregate subDf[cfg.rTimeCol, float].toSeq1D
+    let uTimes = cfg.aggregate subDf[cfg.uTimeCol, float].toSeq1D
+    let mem    = cfg.aggregate subDf[cfg.memCol, float].toSeq1D
+
+    var bench = extractInfoFromName(name)
+    bench.rTimes = rTimes
+    bench.uTimes = uTimes
+    bench.mem = mem
+
+    result[name] = bench
+
+    if cfg.logVerbosity == lvVerbose:
+      info(&"Aggregate metric for:\n{(% bench).pretty()}")
+
 proc main(cfg: Config) =
-  # 0. read the CSV file
-  let df = readCsv(cfg.fname)
 
-  # 1. Start with individual plots
-  cfg.individualPlots(df)
+  if cfg.raw:
+    let benchTab = cfg.processRawData(cfg.fname)
 
-  # 2. Facet plots
-  cfg.facetPlots(df)
+    echo benchTab
+  else:
 
-  # 3. Individual plots and facet plots of all traces
-  cfg.plotFitAllTraces(df, UTime)
-  cfg.plotFitAllTraces(df, RTime)
-  cfg.plotFitAllTraces(df, Space)
+    # 0. read the CSV file
+    let df = readCsv(cfg.fname)
+
+    # 1. Start with individual plots
+    cfg.individualPlots(df)
+
+    # 2. Facet plots
+    cfg.facetPlots(df)
+
+    # 3. Individual plots and facet plots of all traces
+    cfg.plotFitAllTraces(df, UTime)
+    cfg.plotFitAllTraces(df, RTime)
+    cfg.plotFitAllTraces(df, Space)
 
 when isMainModule:
   import cligen
@@ -267,5 +440,6 @@ when isMainModule:
     "log10" : "If true all plots will be log10.",
     "logPath" : "Path where the log file is written to. CURRENTLY IGNORED.",
     "plotPath" : "Path wheer the plot files are written to.",
+    "raw" : "Indicates if the input is raw data or aggregate.",
     })
   app.main # Only --help/--version/parse errors cause early exit
