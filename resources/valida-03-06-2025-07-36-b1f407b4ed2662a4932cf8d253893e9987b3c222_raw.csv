@@ -1,0 +1,221 @@
+Test Name,Iteration,Real Time,User Time,Memory (MB)
+Valida C Fib6 Rec Serial,1,0.4450,0.4240,13.71
+Valida C Fib6 Rec Serial,2,0.4440,0.4230,13.71
+Valida C Fib6 Rec Serial,3,0.4460,0.4190,14.08
+Valida C Fib6 Rec Serial,4,0.4450,0.4200,14.08
+Valida C Fib6 Rec Serial,5,0.4470,0.4230,14.08
+Valida C Fib6 Rec Serial,6,0.4460,0.4220,13.71
+Valida C Fib6 Rec Serial,7,0.4570,0.4220,14.08
+Valida C Fib6 Rec Serial,8,0.4470,0.4260,14.19
+Valida C Fib6 Rec Serial,9,0.4460,0.4180,14.08
+Valida C Fib6 Rec Serial,10,0.4420,0.4200,13.70
+Valida C Fib6 Rec Serial,11,0.4430,0.4250,14.08
+Valida C Fib6 Rec Serial,12,0.4440,0.4210,14.30
+Valida C Fib6 Rec Serial,13,0.4450,0.4240,13.70
+Valida C Fib6 Rec Serial,14,0.4460,0.4190,14.08
+Valida C Fib6 Rec Serial,15,0.4460,0.4210,14.21
+Valida C Fib6 Rec Serial,16,0.4470,0.4230,13.71
+Valida C Fib6 Rec Serial,17,0.4480,0.4150,13.83
+Valida C Fib6 Rec Serial,18,0.4460,0.4170,14.08
+Valida C Fib6 Rec Serial,19,0.4440,0.4210,13.71
+Valida C Fib6 Rec Serial,20,0.4460,0.4280,14.12
+Valida C Fib6 Rec Serial,21,0.4440,0.4180,13.70
+Valida C Fib6 Rec Serial,22,0.4440,0.4180,14.08
+Valida C Fib6 Rec Serial,23,0.4440,0.4230,14.08
+Valida C Fib6 Rec Serial,24,0.4440,0.4160,14.08
+Valida C Fib6 Rec Serial,25,0.4450,0.4180,13.71
+Valida C Fib6 Rec Serial,26,0.4450,0.4140,14.08
+Valida C Fib6 Rec Serial,27,0.4430,0.4230,14.08
+Valida C Fib6 Rec Serial,28,0.4430,0.4180,14.32
+Valida C Fib6 Rec Serial,29,0.4460,0.4210,14.33
+Valida C Fib6 Rec Serial,30,0.4440,0.4140,13.70
+Valida C Fib6 Rec Parallel,1,0.2830,0.7150,12.82
+Valida C Fib6 Rec Parallel,2,0.2850,0.7080,12.75
+Valida C Fib6 Rec Parallel,3,0.2840,0.6990,13.12
+Valida C Fib6 Rec Parallel,4,0.2830,0.6760,13.19
+Valida C Fib6 Rec Parallel,5,0.2830,0.6790,13.56
+Valida C Fib6 Rec Parallel,6,0.2870,0.7120,13.51
+Valida C Fib6 Rec Parallel,7,0.2900,0.7030,12.81
+Valida C Fib6 Rec Parallel,8,0.2850,0.6990,13.50
+Valida C Fib6 Rec Parallel,9,0.2850,0.6450,12.83
+Valida C Fib6 Rec Parallel,10,0.2840,0.6970,13.12
+Valida C Fib6 Rec Parallel,11,0.2840,0.6790,13.20
+Valida C Fib6 Rec Parallel,12,0.2850,0.6990,13.50
+Valida C Fib6 Rec Parallel,13,0.2850,0.6820,13.63
+Valida C Fib6 Rec Parallel,14,0.2860,0.6810,13.28
+Valida C Fib6 Rec Parallel,15,0.2870,0.6970,12.75
+Valida C Fib6 Rec Parallel,16,0.2840,0.7170,13.50
+Valida C Fib6 Rec Parallel,17,0.2840,0.6770,13.12
+Valida C Fib6 Rec Parallel,18,0.2830,0.6670,13.46
+Valida C Fib6 Rec Parallel,19,0.2850,0.7260,13.13
+Valida C Fib6 Rec Parallel,20,0.2830,0.7010,13.95
+Valida C Fib6 Rec Parallel,21,0.2890,0.6650,13.46
+Valida C Fib6 Rec Parallel,22,0.2840,0.6370,13.33
+Valida C Fib6 Rec Parallel,23,0.2830,0.6720,12.74
+Valida C Fib6 Rec Parallel,24,0.2830,0.6740,13.18
+Valida C Fib6 Rec Parallel,25,0.2870,0.6900,12.73
+Valida C Fib6 Rec Parallel,26,0.2860,0.6840,13.50
+Valida C Fib6 Rec Parallel,27,0.2860,0.6880,12.54
+Valida C Fib6 Rec Parallel,28,0.2830,0.6940,13.45
+Valida C Fib6 Rec Parallel,29,0.2840,0.6820,12.80
+Valida C Fib6 Rec Parallel,30,0.2890,0.7110,12.75
+Valida C Fib10 Rec Serial,1,0.7030,0.6760,18.82
+Valida C Fib10 Rec Serial,2,0.7020,0.6720,18.44
+Valida C Fib10 Rec Serial,3,0.7030,0.6780,18.94
+Valida C Fib10 Rec Serial,4,0.7020,0.6720,18.84
+Valida C Fib10 Rec Serial,5,0.7020,0.6740,18.82
+Valida C Fib10 Rec Serial,6,0.7010,0.6740,18.94
+Valida C Fib10 Rec Serial,7,0.7030,0.6790,18.44
+Valida C Fib10 Rec Serial,8,0.7030,0.6840,18.69
+Valida C Fib10 Rec Serial,9,0.6990,0.6710,18.82
+Valida C Fib10 Rec Serial,10,0.7020,0.6650,18.82
+Valida C Fib10 Rec Serial,11,0.7040,0.6710,18.44
+Valida C Fib10 Rec Serial,12,0.7020,0.6730,18.82
+Valida C Fib10 Rec Serial,13,0.7010,0.6710,18.44
+Valida C Fib10 Rec Serial,14,0.7020,0.6780,18.73
+Valida C Fib10 Rec Serial,15,0.6980,0.6730,18.94
+Valida C Fib10 Rec Serial,16,0.7000,0.6680,18.82
+Valida C Fib10 Rec Serial,17,0.7020,0.6830,18.82
+Valida C Fib10 Rec Serial,18,0.6980,0.6710,18.45
+Valida C Fib10 Rec Serial,19,0.7040,0.6680,18.44
+Valida C Fib10 Rec Serial,20,0.7020,0.6730,18.90
+Valida C Fib10 Rec Serial,21,0.7020,0.6720,18.82
+Valida C Fib10 Rec Serial,22,0.7030,0.6730,18.45
+Valida C Fib10 Rec Serial,23,0.7020,0.6760,18.81
+Valida C Fib10 Rec Serial,24,0.7010,0.6760,18.44
+Valida C Fib10 Rec Serial,25,0.7010,0.6620,19.00
+Valida C Fib10 Rec Serial,26,0.6990,0.6740,18.69
+Valida C Fib10 Rec Serial,27,0.7030,0.6750,19.02
+Valida C Fib10 Rec Serial,28,0.7040,0.6760,18.80
+Valida C Fib10 Rec Serial,29,0.7030,0.6720,18.71
+Valida C Fib10 Rec Serial,30,0.7000,0.6630,18.44
+Valida C Fib10 Rec Parallel,1,0.3170,1.0070,23.18
+Valida C Fib10 Rec Parallel,2,0.3180,1.0150,22.62
+Valida C Fib10 Rec Parallel,3,0.3170,1.0420,23.69
+Valida C Fib10 Rec Parallel,4,0.3190,1.0370,23.19
+Valida C Fib10 Rec Parallel,5,0.3170,1.0060,22.63
+Valida C Fib10 Rec Parallel,6,0.3190,1.0150,23.44
+Valida C Fib10 Rec Parallel,7,0.3160,1.0060,23.01
+Valida C Fib10 Rec Parallel,8,0.3180,1.0520,23.60
+Valida C Fib10 Rec Parallel,9,0.3180,1.0440,23.00
+Valida C Fib10 Rec Parallel,10,0.3200,1.0310,23.39
+Valida C Fib10 Rec Parallel,11,0.3200,1.0470,24.07
+Valida C Fib10 Rec Parallel,12,0.3160,1.0030,23.75
+Valida C Fib10 Rec Parallel,13,0.3210,1.0160,22.84
+Valida C Fib10 Rec Parallel,14,0.3180,1.0340,23.82
+Valida C Fib10 Rec Parallel,15,0.3160,1.0020,23.59
+Valida C Fib10 Rec Parallel,16,0.3260,1.0470,23.23
+Valida C Fib10 Rec Parallel,17,0.3200,1.0550,23.44
+Valida C Fib10 Rec Parallel,18,0.3170,1.0340,23.00
+Valida C Fib10 Rec Parallel,19,0.3130,0.9850,23.68
+Valida C Fib10 Rec Parallel,20,0.3140,1.0310,22.47
+Valida C Fib10 Rec Parallel,21,0.3190,1.0840,23.00
+Valida C Fib10 Rec Parallel,22,0.3160,1.0400,23.59
+Valida C Fib10 Rec Parallel,23,0.3190,1.0430,23.22
+Valida C Fib10 Rec Parallel,24,0.3150,1.0320,24.34
+Valida C Fib10 Rec Parallel,25,0.3200,1.0460,24.18
+Valida C Fib10 Rec Parallel,26,0.3190,1.0460,23.82
+Valida C Fib10 Rec Parallel,27,0.3180,1.0280,23.44
+Valida C Fib10 Rec Parallel,28,0.3170,0.9780,23.59
+Valida C Fib10 Rec Parallel,29,0.3190,1.0410,23.07
+Valida C Fib10 Rec Parallel,30,0.3160,1.0610,23.60
+Valida C Fib23 Rec Serial,1,175.4760,170.3570,4880.34
+Valida C Fib23 Rec Serial,2,175.6650,170.4180,4880.34
+Valida C Fib23 Rec Serial,3,175.2480,170.1720,4879.97
+Valida C Fib23 Rec Serial,4,175.4370,170.3930,4879.97
+Valida C Fib23 Rec Serial,5,175.8080,170.6880,4879.96
+Valida C Fib23 Rec Parallel,1,23.1280,185.3140,6978.19
+Valida C Fib23 Rec Parallel,2,23.1930,184.9510,6944.78
+Valida C Fib23 Rec Parallel,3,23.5450,184.2750,6995.29
+Valida C Fib23 Rec Parallel,4,23.5630,184.5070,6999.83
+Valida C Fib23 Rec Parallel,5,23.2230,184.6380,7024.71
+Valida C Fib25 Iter Serial,1,0.4110,0.3800,13.51
+Valida C Fib25 Iter Serial,2,0.4120,0.3890,13.13
+Valida C Fib25 Iter Serial,3,0.4140,0.3970,13.14
+Valida C Fib25 Iter Serial,4,0.4140,0.3880,13.51
+Valida C Fib25 Iter Serial,5,0.4120,0.3820,13.51
+Valida C Fib25 Iter Parallel,1,0.2810,0.5990,12.75
+Valida C Fib25 Iter Parallel,2,0.2770,0.6100,12.45
+Valida C Fib25 Iter Parallel,3,0.2780,0.5640,12.75
+Valida C Fib25 Iter Parallel,4,0.2830,0.6080,13.12
+Valida C Fib25 Iter Parallel,5,0.2800,0.6270,12.49
+Valida C Fib46 Iter Serial,1,0.4120,0.3880,13.51
+Valida C Fib46 Iter Serial,2,0.4100,0.3910,13.51
+Valida C Fib46 Iter Serial,3,0.4100,0.3830,13.52
+Valida C Fib46 Iter Serial,4,0.4120,0.3910,13.51
+Valida C Fib46 Iter Serial,5,0.4080,0.3880,13.51
+Valida C Fib46 Iter Parallel,1,0.2800,0.5830,12.38
+Valida C Fib46 Iter Parallel,2,0.2800,0.6220,13.02
+Valida C Fib46 Iter Parallel,3,0.2770,0.5820,12.54
+Valida C Fib46 Iter Parallel,4,0.2780,0.6110,13.06
+Valida C Fib46 Iter Parallel,5,0.2790,0.6070,12.75
+Valida Rust Keccak500,1,181.8300,3128.0890,65827.86
+Valida Rust Keccak500,2,181.4170,3142.4440,64740.86
+Valida Rust Keccak500,3,182.6710,3126.6880,63438.73
+Valida Rust Keccak500,4,182.9370,3143.2810,65551.29
+Valida Rust Keccak500,5,182.5640,3178.2870,64619.41
+Valida Rust Keccak1000 Chip,1,22.8140,413.3810,8883.35
+Valida Rust Keccak1000 Chip,2,22.7760,415.4010,8891.91
+Valida Rust Keccak1000 Chip,3,24.0680,434.1270,9003.92
+Valida Rust Keccak1000 Chip,4,22.9510,411.3340,8940.81
+Valida Rust Keccak1000 Chip,5,23.1290,417.6000,8941.44
+Valida C SHA256 Serial,1,3.0870,3.0050,85.56
+Valida C SHA256 Serial,2,3.0750,2.9940,85.56
+Valida C SHA256 Serial,3,3.0820,2.9840,85.19
+Valida C SHA256 Serial,4,3.0670,2.9870,85.56
+Valida C SHA256 Serial,5,3.0880,3.0060,85.18
+Valida C SHA256 Serial,6,3.0790,2.9870,85.56
+Valida C SHA256 Serial,7,3.0750,2.9980,85.56
+Valida C SHA256 Serial,8,3.0720,2.9830,85.19
+Valida C SHA256 Serial,9,3.0730,2.9830,85.56
+Valida C SHA256 Serial,10,3.0710,2.9760,85.18
+Valida C SHA256 Serial,11,3.0690,2.9780,85.45
+Valida C SHA256 Serial,12,3.0780,2.9900,85.56
+Valida C SHA256 Serial,13,3.0800,2.9970,85.19
+Valida C SHA256 Serial,14,3.0870,3.0000,85.55
+Valida C SHA256 Serial,15,3.0770,2.9930,85.56
+Valida C SHA256 Serial,16,3.0790,2.9970,85.56
+Valida C SHA256 Serial,17,3.0770,2.9850,85.56
+Valida C SHA256 Serial,18,3.0740,2.9880,85.56
+Valida C SHA256 Serial,19,3.0690,2.9860,85.56
+Valida C SHA256 Serial,20,3.0720,2.9860,85.56
+Valida C SHA256 Serial,21,3.0720,2.9840,85.56
+Valida C SHA256 Serial,22,3.0810,2.9990,85.56
+Valida C SHA256 Serial,23,3.0790,2.9930,85.56
+Valida C SHA256 Serial,24,3.0710,2.9790,85.19
+Valida C SHA256 Serial,25,3.0780,2.9980,85.56
+Valida C SHA256 Serial,26,3.0790,2.9960,85.56
+Valida C SHA256 Serial,27,3.0760,2.9800,85.56
+Valida C SHA256 Serial,28,3.0710,2.9970,85.18
+Valida C SHA256 Serial,29,3.0740,2.9900,85.56
+Valida C SHA256 Serial,30,3.0710,2.9890,85.56
+Valida C SHA256 Parallel,1,0.6580,3.9130,133.89
+Valida C SHA256 Parallel,2,0.6500,3.7740,131.09
+Valida C SHA256 Parallel,3,0.6460,3.7120,134.09
+Valida C SHA256 Parallel,4,0.6410,3.7320,132.05
+Valida C SHA256 Parallel,5,0.6430,3.7500,130.86
+Valida C SHA256 Parallel,6,0.6550,3.9140,134.19
+Valida C SHA256 Parallel,7,0.6460,3.7700,130.13
+Valida C SHA256 Parallel,8,0.6500,3.8850,133.34
+Valida C SHA256 Parallel,9,0.6520,3.8330,132.51
+Valida C SHA256 Parallel,10,0.6500,3.8240,130.24
+Valida C SHA256 Parallel,11,0.6620,3.8710,134.50
+Valida C SHA256 Parallel,12,0.6440,3.8020,132.73
+Valida C SHA256 Parallel,13,0.6490,3.8540,132.33
+Valida C SHA256 Parallel,14,0.6490,3.7730,134.07
+Valida C SHA256 Parallel,15,0.6450,3.8040,133.71
+Valida C SHA256 Parallel,16,0.6460,3.9090,131.62
+Valida C SHA256 Parallel,17,0.6460,3.7730,133.51
+Valida C SHA256 Parallel,18,0.6560,4.0620,136.41
+Valida C SHA256 Parallel,19,0.6500,3.8350,133.42
+Valida C SHA256 Parallel,20,0.6460,3.7940,133.59
+Valida C SHA256 Parallel,21,0.6490,3.8170,131.70
+Valida C SHA256 Parallel,22,0.6550,3.9040,133.73
+Valida C SHA256 Parallel,23,0.6360,3.7500,133.74
+Valida C SHA256 Parallel,24,0.6410,3.7800,131.64
+Valida C SHA256 Parallel,25,0.6600,3.8660,132.82
+Valida C SHA256 Parallel,26,0.6520,3.8030,134.14
+Valida C SHA256 Parallel,27,0.6500,3.8960,133.50
+Valida C SHA256 Parallel,28,0.6410,3.8330,132.01
+Valida C SHA256 Parallel,29,0.6410,3.8300,136.71
+Valida C SHA256 Parallel,30,0.6380,3.8070,133.27
