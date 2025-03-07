@@ -1,0 +1,15 @@
+Name,Main trace,Permutation trace,Total trace size
+Valida C Fib6 Rec Serial,92252,27079,227647
+Valida C Fib6 Rec Parallel,92252,27079,227647
+Valida C Fib10 Rec Serial,294300,52615,557375
+Valida C Fib10 Rec Parallel,294300,52615,557375
+Valida C Fib23 Rec Serial,118290332,14965639,193118527
+Valida C Fib23 Rec Parallel,118290332,14965639,193118527
+Valida C Fib25 Iter Serial,64226,23494,181696
+Valida C Fib25 Iter Parallel,64226,23494,181696
+Valida C Fib46 Iter Serial,64226,23494,181696
+Valida C Fib46 Iter Parallel,64226,23494,181696
+Valida Rust Keccak500,1254209222,124190723,1875162837
+Valida Rust Keccak1000 Chip,204727438,16926544,289360158
+Valida C SHA256 Serial,2041252,270748,3394992
+Valida C SHA256 Parallel,2041252,270748,3394992
