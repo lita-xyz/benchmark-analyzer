@@ -541,8 +541,8 @@ proc main(cfg: Config) =
     echo benchTab
     if cfg.compare.len > 0:
       # also read the comparison file
-      let benchCTab = cfg.processRawData(cfg.fname)
-
+      var benchCTab = cfg.processRawData(cfg.compare)
+      benchCTab.parseTraceSizes(cfg.traceSizes)
       # produce a performance comparison report. We'll highlight performance *regressions* as well as
       # improvements.
       cfg.produceComparison(benchTab, benchCTab)
