@@ -1,4 +1,4 @@
-import std / [strformat, sequtils, tables, strutils, logging, os, macros, stats, strscans, times, options]
+import std / [strformat, sequtils, tables, strutils, logging, os, macros, stats, strscans, times, options, sets]
 import std / [terminal, colors] # for color printing text
 import ggplotnim, mpfit
 
@@ -87,6 +87,9 @@ type
     # Stats config
     outlierThr: float = 3.0 ## threshold in standard deviations a point needs to be away from mean to count as an outlier
                             ## i.e. `3.0` implies a point needs to be 3σ away from the mean.
+    # XXX: set numbers less strict. this is for testing!
+    regressionThr: float = 1.01
+    optimizationThr: float = 0.99
 
     # Comparison config
     compare: string ## Another input file. If given, will produce a report comparing performance to the main `fname` input
@@ -434,7 +437,7 @@ proc processRawData(cfg: Config, fname: string): BenchTable =
     # check for outliers and warn if any found
     proc warnOutliers(name, metric: string, outliers: int) =
       if outliers > 0:
-        warn(&"Outliers detected in {name} for metric {metric}: {outliers}")
+        warnRed(&"Outliers detected in {name} for metric {metric}: {outliers}")
 
     warnOutliers(name, cfg.rTimeCol, rTimes.outliers)
     warnOutliers(name, cfg.uTimeCol, uTimes.outliers)
@@ -527,8 +530,94 @@ proc producePlots(cfg: Config, df: DataFrame) =
 proc produceComparison(cfg: Config, bench1, bench2: BenchTable) =
   ## Produces a comparison of the two input data files.
   ## Highlights performance regressions and improvements.
-  raiseAssert "Not implemented yet."
 
+  # 1. given that we have the bench table, iterate over all benches
+  # and compare each benchmark by:
+  # - median
+  # - mean
+  # - outliers
+  # - σ
+  # 2. for the moment (!) error if they don't agree in all the
+  # benchmarks. This is to make sure we decide on how to handle
+  # this case in the future. Could just log a warning?
+
+  if bench1.len != bench2.len:
+    warnRed(&"There are {bench1.len} benchmarks in the main input file and " &
+      &"{bench2.len} in the comparison file!")
+
+  for bench in keys(bench1):
+    if bench notin bench2:
+      warn(&"The benchmark {bench} does *not* exist in the comparison file!")
+    let b1 = bench1[bench]
+    let b2 = bench2[bench]
+
+    # log what we are comparing
+    info(&"Comparison of {bench} between {b1.date} - {b1.commit} and {b2.date} - {b2.commit}")
+
+    # just some basic sanity checks that we are actually looking at the
+    # same benchmark
+    template assertField(field: untyped{ident}): untyped =
+      let b1f = b1.field
+      let b2f = b2.field
+      doAssert b1f == b2f, astToStr(field) & " does not agree between the two benchmarks! " &
+        "Main file input: & " & $b1f & ", comparison file: " & $b2f
+    assertField(isSerial)
+    assertField(lang)
+    assertField(bench)
+    assertField(size)
+
+    # now compare the trace sizes. At the moment this can't really happen,
+    # because we don't allow for separate trace inputs, but that will change
+    # soon!
+    # NOTE: Due to using a very generic approach to reduce code duplication
+    # the warning messages may read a bit weird for certain metrics.
+    template warnIfDifferent(field: untyped): untyped =
+      if b1.field != b2.field:
+        # NOTE: can't use `&` macro in second line. Cannot access the field
+        # inside the `{}` using the `field` argument here...
+        warnRed(astToStr(field) & " differs between the two benchmarks! " &
+          "Main file input: " & $b1.field & ", comparison file: " & $b2.field)
+    warnIfDifferent(mainTrace)
+    warnIfDifferent(permTrace)
+    warnIfDifferent(totalTrace)
+
+    template compareMetricField(ms1, ms2, metricField: untyped): untyped =
+      let m1 = ms1.metricField
+      let m2 = ms2.metricField
+      let mf = astToStr(metricField)
+      when typeof(m1) is float:
+        if m1 > m2 * cfg.regressionThr: # regression detected!
+          let perc = formatFloat((m1 / m2) * 100.0 - 100.0, ffDecimal, precision = 2)
+          warnRed(&"Performance regression detected in {bench} for " & mf & "! " &
+            "New benchmark is " & perc & "% worse than the old performance!")
+        elif m1 < m2 * cfg.optimizationThr: # optimization detected!
+          let perc = formatFloat((m2 / m1) * 100.0 - 100.0, ffDecimal, precision = 2)
+          warnGreen(&"Performance optimization detected in {bench} for " & mf & "! " &
+            "New benchmark is " & perc & "% better than the old performance!")
+      elif typeof(m1) is int:
+        # compare only the number
+        if m1 < m2: # less of it
+          warnGreen(mf & &" in {bench} lower in main file. Main file: " &
+            $m1 & ", comparison " & $m2)
+        elif m1 > m2: # less of it
+          warnRed(mf & &" in {bench} higher in main file. Main file: " &
+            $m1 & ", comparison " & $m2)
+      else:
+        error("Unexpected input type for field " & astToStr(metricField) & " of type: " & $typeof(m1))
+
+    template compareMetric(field: untyped): untyped =
+      compareMetricField(b1.field, b2.field, mean)
+      compareMetricField(b1.field, b2.field, median)
+      compareMetricField(b1.field, b2.field, stdS)
+      compareMetricField(b1.field, b2.field, outliers)
+    compareMetric(rTimes)
+    compareMetric(uTimes)
+    compareMetric(mem)
+
+  # check for benches that exist in `bench2` but not in `bench1`
+  let onlyIn2 = bench2.keys.toSeq.toSet - bench1.keys.toSeq.toSet
+  for el in onlyIn2:
+    warn(&"The benchmark {el} *only* exists in the comparison file!")
 
 proc main(cfg: Config) =
   if cfg.raw:
