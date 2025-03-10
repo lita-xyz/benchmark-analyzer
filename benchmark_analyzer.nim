@@ -1,4 +1,5 @@
 import std / [strformat, sequtils, tables, strutils, logging, os, macros, stats, strscans, times, options]
+import std / [terminal, colors] # for color printing text
 import ggplotnim, mpfit
 
 import std / json # for easier printing of data to log files
@@ -30,6 +31,20 @@ const LogFile {.strdefine.} = "./logs/benchmark_analyzer.log"
 macro getBody(fn: typed): untyped =
   let fnImpl = fn.getImpl
   result = newLit(fnImpl.body.repr)
+
+template red(msg: untyped): untyped =
+  ## Writes the given text in red using ANSI color codes
+  ansiForegroundColorCode(colRed) & msg & ansiResetCode
+template green(msg: untyped): untyped =
+  ## Writes the given text in green using ANSI color codes
+  ansiForegroundColorCode(colGreen) & msg & ansiResetCode
+
+template warnRed(msg: varargs[untyped]): untyped =
+  warn(red msg.join())
+template warnGreen(msg: varargs[untyped]): untyped =
+  warn(green msg.join())
+
+
 
 type
   ## Helper to store the fit results of a single VM version + trace
