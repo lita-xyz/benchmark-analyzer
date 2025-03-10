@@ -288,7 +288,7 @@ proc plotFitAllTraces(cfg: Config, df: DataFrame, yCol: string, suffix: string =
     info(&"Fitting data for: {ver} -- {tr} against {yCol}")
     let fitRes = fn.fitData(subDf["Value", float].toSeq1D,
                             subDf[yCol, float].toSeq1D,
-                            subDf[yCol & StdSuffix, float].toSeq1D)
+                            subDf[getErrorColumn(yCol), float].toSeq1D)
     fitTab[class] = fitRes
 
     let verStr = ver.sanitize()
@@ -476,7 +476,7 @@ proc benchToDf(name: string, bench: Benchmark): DataFrame =
       # 1. the main value (mean)
       result[col] = @[val.mean]
       # 2. sample standard deviation
-      result[col & StdSuffix] = @[val.stdS]
+      result[getErrorColumn(col)] = @[val.stdS]
     else: # else use as is
       result[col] = @[val]
 
