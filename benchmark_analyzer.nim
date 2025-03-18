@@ -38,12 +38,36 @@ template red(msg: untyped): untyped =
 template green(msg: untyped): untyped =
   ## Writes the given text in green using ANSI color codes
   ansiForegroundColorCode(colGreen) & msg & ansiResetCode
+template orange(msg: untyped): untyped =
+  ## Writes the given text in orange using ANSI color codes
+  ansiForegroundColorCode(colOrange) & msg & ansiResetCode
+template cyan(msg: untyped): untyped =
+  ## Writes the given text in orange using ANSI color codes
+  ansiForegroundColorCode(colCyan) & msg & ansiResetCode
+template pink(msg: untyped): untyped =
+  ## Writes the given text in pink using ANSI color codes
+  ansiForegroundColorCode(colDeepPink) & msg & ansiResetCode
 
 template warnRed(msg: varargs[untyped]): untyped =
   warn(red msg.join())
 template warnGreen(msg: varargs[untyped]): untyped =
   warn(green msg.join())
 
+template print(fn, color: untyped, msg: varargs[untyped]): untyped =
+  fn color(msg.join())
+
+template smallSep(fn: untyped): untyped =
+  fn repeat("-", 80)
+
+template bigSep(fn: untyped): untyped =
+  fn ""
+  fn cyan(repeat("=", 80))
+  fn ""
+
+template bigSep(fn, color: untyped): untyped =
+  fn ""
+  fn color(repeat("=", 80))
+  fn ""
 
 
 type
@@ -61,10 +85,14 @@ type
     ffLogPlusLin = "logLin"
     ffLinear = "linear"
 
+  LogFields = enum
+    lfProcessing, lfWarnings, lfPerformance, lfFitting, lfDetailedMetrics
+
   LogVerbosity = enum
-    lvQuiet,   ## No log (not implemented yet)
-    lvDefault, ## Regular log file
-    lvVerbose  ## Extra verbose log, e.g. contains calculated metrics etc.
+    lvManual, ## use if want to manually pass `logFields`
+    lvNoFits, ## log everything but fit data
+    lvVerbose, ## log (almost) everything
+    lvDebug ## log everything including detailed metric stats
 
   ## Context object storing the user settings
   Config = object
@@ -74,7 +102,8 @@ type
     log10: bool = false
     fitFunc: FitFunction = ffLogPlusLin
     raw: bool = false ## Indicates input is raw data
-    logVerbosity = lvDefault  ##
+    logVerbosity: LogVerbosity = lvVerbose
+    logFields: set[LogFields] ## Which data to log, by default all but detailed metrics
     traceSizes: string = "resources/trace_sizes.csv" ## Path to the file containing trace sizes for each benchmark
 
     # Parameters of the data files
@@ -168,9 +197,7 @@ proc getFitFunction(fitFn: FitFunction): Model =
   of ffLogPlusLin: Model(fn: logPlusLin, body: getBody(logPlusLin))
   of ffLinear: Model(fn: linear, body: getBody(linear))
 
-template separator(): string = repeat('-', 30)
-
-proc fitData(m: Model, xs, ys, ey: seq[float]): FitResult =
+proc fitData(cfg: Config, m: Model, xs, ys, ey: seq[float]): FitResult =
   ## Perform a fit of `fitFn` given the data.
   let params = @[1.0, 1.0, 1.0]
   let (pRes, res) = fit(m.fn, params,
@@ -178,10 +205,13 @@ proc fitData(m: Model, xs, ys, ey: seq[float]): FitResult =
                         y = ys,
                         ey = ey) # error is sample standard deviation
   let resText = pretty(pRes, res)
-  info("Fit result for fit function:")
-  info(&"\t`{m.body}`")
-  info(separator() & "\n" & resText)
-  info(separator())
+
+  if lfFitting in cfg.logFields:
+    info("Fit result for fit function:")
+    info(&"\t`{m.body}`")
+    smallSep(info)
+    info(resText)
+    smallSep(info)
 
   # Compute values for the function based on fit results
   let xs = linspace(xs.min, xs.max, 1000)
@@ -303,10 +333,12 @@ proc plotFitAllTraces(cfg: Config, df: DataFrame, yCol: string, suffix: string =
     let class = (vm: ver, trace: tr)
 
     let fn = getFitFunction(cfg.fitFunc)
-    info(&"Fitting data for: {ver} -- {tr} against {yCol}")
-    let fitRes = fn.fitData(subDf["Value", float].toSeq1D,
-                            subDf[yCol, float].toSeq1D,
-                            subDf[getErrorColumn(yCol), float].toSeq1D)
+    if lfFitting in cfg.logFields:
+      bigSep(info)
+      info(&"Fitting data for: {ver} -- {tr} against {yCol}")
+    let fitRes = cfg.fitData(fn, subDf["Value", float].toSeq1D,
+                             subDf[yCol, float].toSeq1D,
+                             subDf[getErrorColumn(yCol), float].toSeq1D)
     fitTab[class] = fitRes
 
     let verStr = ver.sanitize()
@@ -413,13 +445,19 @@ proc processRawData(cfg: Config, fname: string): BenchTable =
   # 1. parse date and commit
   let (date, commit) = parseDateCommit(fname)
 
-  info &"Processing raw data of commit: {commit} benched on {date}"
+  if lfProcessing in cfg.logFields:
+    bigSep(notice)
+    notice.print(pink, &"Start of raw data processing for {fname}")
+    bigSep(notice)
+
+    notice(&"Processing raw data of commit: {commit} benched on {date}")
 
   # iterate over groups of all tests
   for (tup, subDf) in groups(rawDf.group_by(cfg.testCol)):
     # 1. compute aggregate statistics
     let name = tup[0][1].toStr
-    info &"Computing aggregate data for: {name}"
+    if lfProcessing in cfg.logFields:
+      notice(&"Computing aggregate data for: {name}")
     let rTimes = cfg.aggregate subDf[cfg.rTimeCol, float].toSeq1D
     let uTimes = cfg.aggregate subDf[cfg.uTimeCol, float].toSeq1D
     let mem    = cfg.aggregate subDf[cfg.memCol, float].toSeq1D
@@ -431,17 +469,17 @@ proc processRawData(cfg: Config, fname: string): BenchTable =
 
     result[name] = bench
 
-    if cfg.logVerbosity == lvVerbose:
-      info(&"Aggregate metric for:\n{(% bench).pretty()}")
+    if lfDetailedMetrics in cfg.logFields:
+      notice(&"Aggregate metric for:\n{(% bench).pretty()}")
 
-    # check for outliers and warn if any found
-    proc warnOutliers(name, metric: string, outliers: int) =
-      if outliers > 0:
-        warnRed(&"Outliers detected in {name} for metric {metric}: {outliers}")
+      # check for outliers and warn if any found
+      proc warnOutliers(name, metric: string, outliers: int) =
+        if outliers > 0:
+          warnRed(&"Outliers detected in {name} for metric {metric}: {outliers}")
 
-    warnOutliers(name, cfg.rTimeCol, rTimes.outliers)
-    warnOutliers(name, cfg.uTimeCol, uTimes.outliers)
-    warnOutliers(name, cfg.memCol, mem.outliers)
+      warnOutliers(name, cfg.rTimeCol, rTimes.outliers)
+      warnOutliers(name, cfg.uTimeCol, uTimes.outliers)
+      warnOutliers(name, cfg.memCol, mem.outliers)
 
 proc parseTraceSizes(benchTab: var BenchTable, traceSizes: string) =
   ## Parses the CSV file containing trace sizes and stores the
@@ -511,6 +549,12 @@ proc producePlots(cfg: Config, df: DataFrame) =
   # now filter to everything we _can_ sensibly plot, i.e. filter out
   # by benchmark programs.
   # Only recursive and iterative Fibonacci use useful at the moment
+
+  if lfFitting in cfg.logFields:
+    bigSep(info)
+    info.print(pink, "Start of numerical analysis of benchmarks against trace size")
+    bigSep(info)
+
   let dfP = df.filter(f{`bench` in [$bkIterFibonacci, $bkRecursiveFibonacci]})
   # split by serial and parallel versions
   for (tup, subDf) in groups(dfP.group_by("isSerial")):
@@ -541,18 +585,29 @@ proc produceComparison(cfg: Config, bench1, bench2: BenchTable) =
   # benchmarks. This is to make sure we decide on how to handle
   # this case in the future. Could just log a warning?
 
-  if bench1.len != bench2.len:
+  # NOTE: We don't just exclude the whole logic if `lfPerformance` is not in
+  # the fields we log, because some warnings need to be printed if `lfWarnings`
+  # is given. Unlikely to use one or the other, but might be useful.
+
+  if lfPerformance in cfg.logFields:
+    bigSep(notice)
+    notice.print(pink, "Start of performance regression / improvement analysis")
+    bigSep(notice)
+
+  if bench1.len != bench2.len and lfWarnings in cfg.logFields:
     warnRed(&"There are {bench1.len} benchmarks in the main input file and " &
       &"{bench2.len} in the comparison file!")
 
   for bench in keys(bench1):
-    if bench notin bench2:
+    if bench notin bench2 and lfWarnings in cfg.logFields:
       warn(&"The benchmark {bench} does *not* exist in the comparison file!")
     let b1 = bench1[bench]
     let b2 = bench2[bench]
 
     # log what we are comparing
-    info(&"Comparison of {bench} between {b1.date} - {b1.commit} and {b2.date} - {b2.commit}")
+    if lfPerformance in cfg.logFields:
+      smallSep(notice)
+      notice.print(orange, &"Comparison of {bench} between {b1.date} - {b1.commit} and {b2.date} - {b2.commit}")
 
     # just some basic sanity checks that we are actually looking at the
     # same benchmark
@@ -577,45 +632,52 @@ proc produceComparison(cfg: Config, bench1, bench2: BenchTable) =
         # inside the `{}` using the `field` argument here...
         warnRed(astToStr(field) & " differs between the two benchmarks! " &
           "Main file input: " & $b1.field & ", comparison file: " & $b2.field)
-    warnIfDifferent(mainTrace)
-    warnIfDifferent(permTrace)
-    warnIfDifferent(totalTrace)
+    if lfWarnings in cfg.logFields:
+      warnIfDifferent(mainTrace)
+      warnIfDifferent(permTrace)
+      warnIfDifferent(totalTrace)
 
-    template compareMetricField(ms1, ms2, metricField: untyped): untyped =
+    template compareMetricField(ms1, ms2, metricField, metric: untyped): untyped =
       let m1 = ms1.metricField
       let m2 = ms2.metricField
-      let mf = astToStr(metricField)
+      let mf = $astToStr(metricField)
       when typeof(m1) is float:
         if m1 > m2 * cfg.regressionThr: # regression detected!
           let perc = formatFloat((m1 / m2) * 100.0 - 100.0, ffDecimal, precision = 2)
-          warnRed(&"Performance regression detected in {bench} for " & mf & "! " &
+          warnRed(&"Performance regression detected in `{bench}` for `" & mf & "` of `" & metric & "`! " &
             "New benchmark is " & perc & "% worse than the old performance!")
         elif m1 < m2 * cfg.optimizationThr: # optimization detected!
           let perc = formatFloat((m2 / m1) * 100.0 - 100.0, ffDecimal, precision = 2)
-          warnGreen(&"Performance optimization detected in {bench} for " & mf & "! " &
+          warnGreen(&"Performance optimization detected in `{bench}` for " & mf & "` of `" & metric & "`! " &
             "New benchmark is " & perc & "% better than the old performance!")
       elif typeof(m1) is int:
         # compare only the number
         if m1 < m2: # less of it
-          warnGreen(mf & &" in {bench} lower in main file. Main file: " &
+          warnGreen("`" & mf & &"` in `{bench}` of `" & metric & "` lower in main file. Main file: " &
             $m1 & ", comparison " & $m2)
         elif m1 > m2: # less of it
-          warnRed(mf & &" in {bench} higher in main file. Main file: " &
+          warnRed("`" & mf & &"` in `{bench}` of `" & metric & "` higher in main file. Main file: " &
             $m1 & ", comparison " & $m2)
       else:
         error("Unexpected input type for field " & astToStr(metricField) & " of type: " & $typeof(m1))
 
     template compareMetric(field: untyped): untyped =
-      compareMetricField(b1.field, b2.field, mean)
-      compareMetricField(b1.field, b2.field, median)
-      compareMetricField(b1.field, b2.field, stdS)
-      compareMetricField(b1.field, b2.field, outliers)
-    compareMetric(rTimes)
-    compareMetric(uTimes)
-    compareMetric(mem)
+      compareMetricField(b1.field, b2.field, mean, astToStr(field))
+      compareMetricField(b1.field, b2.field, median, astToStr(field))
+      compareMetricField(b1.field, b2.field, stdS, astToStr(field))
+      compareMetricField(b1.field, b2.field, outliers, astToStr(field))
+
+    if lfPerformance in cfg.logFields:
+      compareMetric(rTimes)
+      compareMetric(uTimes)
+      compareMetric(mem)
 
   # check for benches that exist in `bench2` but not in `bench1`
   let onlyIn2 = bench2.keys.toSeq.toSet - bench1.keys.toSeq.toSet
+  if onlyIn2.len > 0 and lfWarnings in cfg.logFields:
+    bigSep(notice)
+    warn.print(pink, "List of benchmarks only contained in secondary input file.")
+    bigSep(notice)
   for el in onlyIn2:
     warn(&"The benchmark {el} *only* exists in the comparison file!")
 
@@ -627,7 +689,6 @@ proc main(cfg: Config) =
     # For the plots we need to assemble a DF from the `benchTab`
     var df = assembleDf(benchTab)
 
-    echo benchTab
     if cfg.compare.len > 0:
       # also read the comparison file
       var benchCTab = cfg.processRawData(cfg.compare)
@@ -657,6 +718,15 @@ proc main(cfg: Config) =
     cfg.plotFitAllTraces(df, MemoryCol)
 
 when isMainModule:
+
+  proc setLogFields(cfg: var Config) =
+    ## Set the fields we log based on the `logVerbosity`, if given
+    case cfg.logVerbosity:
+    of lvManual: return
+    of lvNoFits: cfg.logFields = {lfProcessing, lfWarnings, lfPerformance}
+    of lvVerbose: cfg.logFields = {lfProcessing, lfWarnings, lfPerformance, lfFitting}
+    of lvDebug: cfg.logFields = {lfProcessing, lfWarnings, lfPerformance, lfFitting, lfDetailedMetrics}
+
   import cligen
   const ConfigPath = "bench_analyzer.config" # can be used to overwrite default config
   include mergeCfgEnvLocal
@@ -671,4 +741,5 @@ when isMainModule:
     "raw" : "Indicates if the input is raw data or aggregate.",
     "traceSizes" : "Path to the CSV file containing trace sizes for each benchmark program.",
     })
+  app.setLogFields()
   app.main # Only --help/--version/parse errors cause early exit
