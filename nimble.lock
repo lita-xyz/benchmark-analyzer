@@ -386,13 +386,13 @@
       }
     },
     "mpfit": {
-      "version": "0.2.0",
-      "vcsRevision": "6706a57f7388ca1893c81314e1e6e2aec468669a",
+      "version": "0.2.1",
+      "vcsRevision": "492f36a52af8356a1d5684355fdefbf5b76b67ff",
       "url": "https://github.com/Vindaar/nim-mpfit",
       "downloadMethod": "git",
       "dependencies": [],
       "checksums": {
-        "sha1": "ff9a320b472c5d3851414e2aa555d9c3c2437ad7"
+        "sha1": "130ea165070c5b1ce242b2fcee16ed85fd6a09d5"
       }
     }
   },
