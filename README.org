@@ -14,7 +14,7 @@ well as written to a log file.
 
 The basic usage looks like:
 #+begin_src sh
-./benchmark_analyzer -f <input_csv>
+./benchmark_analyzer --raw -f <input_csv>
 #+end_src
 
 but multiple optional arguments are supported:
@@ -22,26 +22,68 @@ but multiple optional arguments are supported:
 NO_COLOR=true ./benchmark_analyzer -h
 #+end_src
 
-#+begin_src 
+#+begin_src
 Usage:
   benchmark_analyzer [optional-params] 
-Options:
-  -h, --help                            print this cligen-erated help
+options:
+  -h, --help                                                  print this
+                                                              cligen-erated help
   
-  --help-syntax                         advanced: prepend,plurals,..
+  --help-syntax                                               advanced:
+                                                              prepend,plurals,..
   
-  -f=, --fname=    string      ""       Input CSV file with benchmarking
-                                        results.
+  -f=, --fname=      string       ""                          Input CSV file
+                                                              with benchmarking
+                                                              results.
   
-  -p=, --plotPath= string      "/tmp"   Path to where the plot files are written
-                                        to.
+  -p=, --plotPath=   string       "/tmp"                      Path wheer the
+                                                              plot files are
+                                                              written to.
   
-  -l=, --logPath=  string      "./logs" Path to where the log file is written to.
-                                        CURRENTLY IGNORED.
+  -l=, --logPath=    string       "./logs"                    Path where the log
+                                                              file is written
+                                                              to. CURRENTLY
+                                                              IGNORED.
   
-  --log10          bool        false    If true all plots will be log10.
+  --log10            bool         false                       If true all plots
+                                                              will be log10.
   
-  --fitFunc=       FitFunction logLin   Function used for fitting.
+  --fitFunc=         FitFunction  logLin                      Function used for
+                                                              fitting.
+  
+  -r, --raw          bool         false                       Indicates if the
+                                                              input is raw data
+                                                              or aggregate.
+  
+  --logVerbosity=    LogVerbosity lvDefault                   select 1
+                                                              LogVerbosity
+  
+  -t=, --traceSizes= string       "resources/trace_sizes.csv" Path to the CSV
+                                                              file containing
+                                                              trace sizes for
+                                                              each benchmark
+                                                              program.
+  
+  --testCol=         string       "Test Name"                 set testCol
+  
+  -i=, --iterCol=    string       "Iteration"                 set iterCol
+  
+  --rTimeCol=        string       "Real Time"                 set rTimeCol
+  
+  -u=, --uTimeCol=   string       "User Time"                 set uTimeCol
+  
+  -m=, --memCol=     string       "Memory (MB)"               set memCol
+  
+  -o=, --outlierThr= float        3.0                         set outlierThr
+  
+  --regressionThr=   float        1.01                        set regressionThr
+  
+  --optimizationThr= float        0.99                        set
+                                                              optimizationThr
+  
+  -c=, --compare=    string       ""                          set compare
+  
+  --perfDiffThr=     float        0.0                         set perfDiffThr
 #+end_src
 
 The two supported models are ~linear~ \(f(x) = a·x + b\) and ~logLin~
@@ -104,6 +146,21 @@ An example for a combined grid plot of all traces for a single metric
 
 [[./media/all_traces_Max_space__kB__with_fit.svg]]
 
+*** Comparison of two benchmark results
+
+The tool supports comparing two input files for performance
+improvements or regressions.
+
+This is done by using the additional ~--compare~ argument and passing
+in a second CSV file:
+
+#+begin_src sh
+./benchmark_analyzer --raw -f <input_csv> --compare <comparison_csv>
+#+end_src
+
+A log file is written to ~./logs/benchmark_analyzer.log~ as well as to
+~stdout~.
+
 ** Build instructions
 
 For the moment building the tool requires one to:
@@ -113,26 +170,28 @@ For the moment building the tool requires one to:
 2. install the ~ggplotnim~ dependencies (~libcairo~) following your
    operating system's [[https://www.cairographics.org/download/][instructions to install]] (if there was a Windows
    user for this tool, follow [[https://github.com/Vindaar/ggplotnim/?tab=readme-ov-file#windows][this]]).
-3. manually install the 3 dependencies:
+3. use ~nimble~ to get all dependencies:
    #+begin_src
-nimble install ggplotnim cligen nim-mpfit
+nimble setup
    #+end_src
 4. build the C shared library of [[https://pages.physics.wisc.edu/~craigm/idl/cmpfit.html][mpfit]], follow the instructions here:
    https://github.com/Vindaar/nim-mpfit?tab=readme-ov-file#dependencies--installation
 5. build the binary of the tool (produces the binary
    ~benchmark_analyzer~ in the directory of this repo):
    #+begin_src sh
+nimble install
+   #+end_src
+   or manually via:
+   #+begin_src sh
 nim c -d:release benchmark_analyzer
    #+end_src
 6. (optional) add the directory of the repo to your ~PATH~, move the
    binary or create a symlink of your choice.
 
-*NOTE*: I will turn this into a ~nimble~ project with a lock file for
-dependencies. The reason I haven't done that so far is that the
-~mpfit~ dependency currently requires manual work by the user.
-My current plan is to either automate the ~mpfit~ build process or
-replace ~mpfit~ by a native Nim implementation (nowadays we have a
-Levenberg-Marquardt implementation in [[https://github.com/SciNim/numericalnim/blob/master/src/numericalnim/optimize.nim#L610-L669][numericalnim]]).
+*NOTE*: I might improve the install situation in the future by either
+automating the ~mpfit~ build process or replace ~mpfit~ by a native
+Nim implementation (nowadays we have a Levenberg-Marquardt
+implementation in [[https://github.com/SciNim/numericalnim/blob/master/src/numericalnim/optimize.nim#L610-L669][numericalnim]]).
 
 ** Important notes
 
@@ -146,32 +205,19 @@ Levenberg-Marquardt implementation in [[https://github.com/SciNim/numericalnim/b
 
 ** Input data
 
-At the moment the input data needs to be a CSV file with the following
-layout:
+At the moment the input data needs to be a CSV file of the raw
+benchmark output. An example file is:
 
-| VM version | Main trace size (field elements) | Permutation trace size (extension field elements) | Main + permutation trace size (field elements) | User time (s) | Real time (s) | Max space (kB) | Program |
-|------------+----------------------------------+---------------------------------------------------+------------------------------------------------+---------------+---------------+----------------+---------|
-| 1/23/25    |                        115018933 |                                          18673001 |                                      208383938 |         99.76 |         12.36 |        7555632 | Rec23   |
-| 1/23/25    |                         28806325 |                                           4713833 |                                       52375490 |         24.51 |          3.07 |        1971396 | Rec20   |
-| ...        |                              ... |                                               ... |                                            ... |           ... |           ... |            ... | ...     |
-| 8/9/24     |                        115018933 |                                          18673001 |                                      208383938 |           139 |         11.91 |        7010096 | Rec23   |
-| 8/9/24     |                         28806325 |                                           4713833 |                                       52375490 |         59.07 |          4.87 |        3449008 | Rec20   |
-| ...        |                              ... |                                               ... |                                            ... |           ... |           ... |            ... | ...     |
+[[./resources/valida-03-06-2025-07-36-b1f407b4ed2662a4932cf8d253893e9987b3c222_raw.csv]]
 
-The name of the columns is currently defined by constants at the top
-of the file here:
+At the moment the information of the trace sizes is given in the
+following CSV file
 
-https://github.com/lita-xyz/benchmark-analyzer/blob/master/benchmark_analyzer.nim#L4-L11
+[[./resources/trace_sizes.csv]],
 
-but can be easily changed to be adjusted either as command line
-arguments or using a config file.
+which is generated by 
 
-*** Sample data
-
-The ~resources~ directory contains a data file based on the data from
-here:
-
-https://github.com/lita-xyz/valida-toolchain/issues/825#issuecomment-2631329397
+https://github.com/lita-xyz/valida-toolchain/blob/fb6368a2d40564a92259df4a1cda43819475b292/llvm-valida/benchmarking/get_trace_sizes.py
 
 
 ** Possible future features
@@ -179,11 +225,11 @@ https://github.com/lita-xyz/valida-toolchain/issues/825#issuecomment-2631329397
 We can imagine to add a lot of interesting features in the future:
 - more detailed reporting of fit results (covariance matrix, ...)
 - automatic report generation beyond a log file
-- highlighting of outliers
+- [X] highlighting of outliers
 - generation of structured output data for further processing by
   another tool (e.g. for immediate reporting of performance
   regressions)
-- statistical analyses of aggregates of multiple benchmark runs once
+- [X] statistical analyses of aggregates of multiple benchmark runs once
   we have statistics
 - bootstrap resampling of existing data  
 - and probably lots more...  
