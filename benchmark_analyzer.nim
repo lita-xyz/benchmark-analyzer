@@ -648,7 +648,7 @@ proc produceComparison(cfg: Config, bench1, bench2: BenchTable) =
             "New benchmark is " & perc & "% worse than the old performance!")
         elif m1 < m2 * cfg.optimizationThr: # optimization detected!
           let perc = formatFloat((m2 / m1) * 100.0 - 100.0, ffDecimal, precision = 2)
-          warnGreen(&"Performance optimization detected in `{bench}` for " & mf & "` of `" & metric & "`! " &
+          warnGreen(&"Performance optimization detected in `{bench}` for `" & mf & "` of `" & metric & "`! " &
             "New benchmark is " & perc & "% better than the old performance!")
       elif typeof(m1) is int:
         # compare only the number
