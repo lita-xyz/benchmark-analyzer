@@ -1,0 +1,9 @@
+* v0.1.1
+- minor fix in printing of performance regressions (missing backtick)
+- change language from "performance optimization" to "performance
+  improvement"
+- respect ~NO_COLOR~ environment variable following
+  https://no-color.org/ to disable colored output  
+* v0.1.0
+- initial version with plots for individual metrics, fits against
+  trace sizes and comparison for performance improvements / regressions
