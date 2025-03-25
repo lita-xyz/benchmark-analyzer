@@ -32,21 +32,32 @@ macro getBody(fn: typed): untyped =
   let fnImpl = fn.getImpl
   result = newLit(fnImpl.body.repr)
 
+# check for `NO_COLOR` environment variable once upon startup.
+# Following https://no-color.org/ we disable color if the var
+# is defined and has _any_ value.
+let noColor = getEnv("NO_COLOR").len > 0
+
+template color(col, msg: untyped): untyped =
+  if not noColor:
+    ansiForegroundColorCode(col) & msg & ansiResetCode
+  else:
+    msg
+
 template red(msg: untyped): untyped =
   ## Writes the given text in red using ANSI color codes
-  ansiForegroundColorCode(colRed) & msg & ansiResetCode
+  color(colRed, msg)
 template green(msg: untyped): untyped =
   ## Writes the given text in green using ANSI color codes
-  ansiForegroundColorCode(colGreen) & msg & ansiResetCode
+  color(colGreen, msg)
 template orange(msg: untyped): untyped =
   ## Writes the given text in orange using ANSI color codes
-  ansiForegroundColorCode(colOrange) & msg & ansiResetCode
+  color(colOrange, msg)
 template cyan(msg: untyped): untyped =
   ## Writes the given text in orange using ANSI color codes
-  ansiForegroundColorCode(colCyan) & msg & ansiResetCode
+  color(colCyan, msg)
 template pink(msg: untyped): untyped =
   ## Writes the given text in pink using ANSI color codes
-  ansiForegroundColorCode(colDeepPink) & msg & ansiResetCode
+  color(colDeepPink, msg)
 
 template warnRed(msg: varargs[untyped]): untyped =
   warn(red msg.join())
