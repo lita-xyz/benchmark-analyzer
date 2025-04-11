@@ -1,3 +1,11 @@
+* v0.1.2
+- Support more than one trace size file.
+  The first argument is always used for the main input. The second if it
+  is given is used for the comparison benchmark. However, if only one
+  input is given, it is used for both inputs.
+- clean up the performance reporting (no more sample standard
+  deviation by default & less confusing reporting)
+- generates an Org table of the performance changes
 * v0.1.1
 - minor fix in printing of performance regressions (missing backtick)
 - change language from "performance optimization" to "performance
