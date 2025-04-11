@@ -394,6 +394,16 @@
       "checksums": {
         "sha1": "130ea165070c5b1ce242b2fcee16ed85fd6a09d5"
       }
+    },
+    "orgtables": {
+      "version": "0.1.1",
+      "vcsRevision": "34d97a920c6b43d5dbd32c2e29ad47bf116f8d65",
+      "url": "https://github.com/Vindaar/orgtables",
+      "downloadMethod": "git",
+      "dependencies": [],
+      "checksums": {
+        "sha1": "ef1217d4764397f7e8f059a18021988930b21a92"
+      }
     }
   },
   "tasks": {}
