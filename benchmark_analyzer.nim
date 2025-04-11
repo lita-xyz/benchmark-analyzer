@@ -115,7 +115,7 @@ type
     raw: bool = false ## Indicates input is raw data
     logVerbosity: LogVerbosity = lvVerbose
     logFields: set[LogFields] ## Which data to log, by default all but detailed metrics
-    traceSizes: string = "resources/trace_sizes.csv" ## Path to the file containing trace sizes for each benchmark
+    traceSizes: seq[string] = @["resources/trace_sizes.csv"] ## Path to the file containing trace sizes for each benchmark. [main file, comparison file]
 
     # Parameters of the data files
     testCol: string = TestNameCol
@@ -695,7 +695,8 @@ proc produceComparison(cfg: Config, bench1, bench2: BenchTable) =
 proc main(cfg: Config) =
   if cfg.raw:
     var benchTab = cfg.processRawData(cfg.fname)
-    benchTab.parseTraceSizes(cfg.traceSizes)
+    doAssert cfg.traceSizes.len >= 1, "At least one path to a CSV file with trace sizes must be supplied."
+    benchTab.parseTraceSizes(cfg.traceSizes[0])
 
     # For the plots we need to assemble a DF from the `benchTab`
     var df = assembleDf(benchTab)
@@ -703,7 +704,8 @@ proc main(cfg: Config) =
     if cfg.compare.len > 0:
       # also read the comparison file
       var benchCTab = cfg.processRawData(cfg.compare)
-      benchCTab.parseTraceSizes(cfg.traceSizes)
+      let trS = if cfg.traceSizes.len > 1: cfg.traceSizes[1] else: cfg.traceSizes[0]
+      benchCTab.parseTraceSizes(trS)
       # produce a performance comparison report. We'll highlight performance *regressions* as well as
       # improvements.
       cfg.produceComparison(benchTab, benchCTab)
@@ -750,7 +752,10 @@ when isMainModule:
     "logPath" : "Path where the log file is written to. CURRENTLY IGNORED.",
     "plotPath" : "Path wheer the plot files are written to.",
     "raw" : "Indicates if the input is raw data or aggregate.",
-    "traceSizes" : "Path to the CSV file containing trace sizes for each benchmark program.",
+    "traceSizes" : """Paths to the CSV files containing trace sizes for each benchmark program.
+First argument is for the main input and the second for the comparison input (if any). If only one
+argument given, will use the first input for both.
+""",
     })
   app.setLogFields()
   app.main # Only --help/--version/parse errors cause early exit
