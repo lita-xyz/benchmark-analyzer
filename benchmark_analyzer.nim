@@ -1,6 +1,6 @@
-import std / [strformat, sequtils, tables, strutils, logging, os, macros, stats, strscans, times, options, sets]
+import std / [strformat, sequtils, tables, strutils, logging, os, macros, stats, strscans, times, options, sets, algorithm]
 import std / [terminal, colors] # for color printing text
-import ggplotnim, mpfit
+import ggplotnim, mpfit, orgtables
 
 import std / json # for easier printing of data to log files
 
@@ -133,7 +133,6 @@ type
 
     # Comparison config
     compare: string ## Another input file. If given, will produce a report comparing performance to the main `fname` input
-    perfDiffThr: float ## Threshold in performance difference between the two files at which we add them to the report
 
   Model = object
     fn: FuncProto[float]
@@ -582,6 +581,50 @@ proc producePlots(cfg: Config, df: DataFrame) =
     cfg.plotFitAllTraces(df, RTimeCol, suffix)
     cfg.plotFitAllTraces(df, MemoryCol, suffix)
 
+
+
+# First, add this import to benchmark_analyzer.nim
+# Define a structure to hold comparison data
+type
+  ComparisonEntry = tuple
+    benchmark: string    # Benchmark name
+    mtric: string        # Metric type (RTime, UTime, Memory)
+    newVal: float        # Main file value (usually the new value)
+    oldVal: float        # Comparison file value (usually the old value)
+    diff: float          # Raw difference
+    ratio: float         # Ratio of oldVal/newVal
+    percChange: float      # Percentage change
+    isRegression: bool   # Whether it's a regression
+
+# Add this function to produce the comparison table
+proc generateComparisonTable(entries: seq[ComparisonEntry]): string =
+  # Sort entries: regressions first, then by percentage difference magnitude
+  var sortedEntries = entries.sortedByIt(it.ratio).reversed
+
+  # Generate the table
+  result = "** Performance Comparison Summary\n\n"
+  result.add toOrgHeader(ComparisonEntry)
+  for entry in sortedEntries:
+    result.add toOrgLine(entry, 6)
+
+proc formatPerformanceChange(oldVal, newVal: float): string =
+  let ratio = newVal / oldVal
+  # For time/memory metrics, lower is better
+  if ratio < 1.0:  # Improvement
+    if ratio <= 0.1:  # More than 10x better
+      result = fmt"{1/ratio:.1f}x better"
+    elif ratio <= 0.5:  # 2-10x better
+      result = fmt"{1/ratio:.1f}x better"
+    else:  # Less than 2x better
+      result = fmt"{(1.0-ratio)*100:.1f}% better"
+  else:  # Regression
+    if ratio >= 10.0:  # More than 10x worse
+      result = fmt"{ratio:.1f}x worse"
+    elif ratio >= 2.0:  # 2-10x worse
+      result = fmt"{ratio:.1f}x worse"
+    else:  # Less than 2x worse
+      result = fmt"{(ratio-1.0)*100:.1f}% worse"
+
 proc produceComparison(cfg: Config, bench1, bench2: BenchTable) =
   ## Produces a comparison of the two input data files.
   ## Highlights performance regressions and improvements.
@@ -600,14 +643,22 @@ proc produceComparison(cfg: Config, bench1, bench2: BenchTable) =
   # the fields we log, because some warnings need to be printed if `lfWarnings`
   # is given. Unlikely to use one or the other, but might be useful.
 
+  # get a random element for `date` and `commit` fields
+  let b1 = bench1[bench1.keys().toSeq()[0]]
+  let b2 = bench2[bench2.keys().toSeq()[0]]
+
   if lfPerformance in cfg.logFields:
     bigSep(notice)
     notice.print(pink, "Start of performance regression / improvement analysis")
+    notice.print(pink, &"Between {b1.date} - {b1.commit} (main) and {b2.date} - {b2.commit} (comparison)")
     bigSep(notice)
 
   if bench1.len != bench2.len and lfWarnings in cfg.logFields:
     warnRed(&"There are {bench1.len} benchmarks in the main input file and " &
       &"{bench2.len} in the comparison file!")
+
+  # Collection to store comparison entries for the table
+  var comparisonEntries: seq[ComparisonEntry]
 
   for bench in keys(bench1):
     if bench notin bench2 and lfWarnings in cfg.logFields:
@@ -618,7 +669,7 @@ proc produceComparison(cfg: Config, bench1, bench2: BenchTable) =
     # log what we are comparing
     if lfPerformance in cfg.logFields:
       smallSep(notice)
-      notice.print(orange, &"Comparison of {bench} between {b1.date} - {b1.commit} and {b2.date} - {b2.commit}")
+      notice.print(orange, &"Comparison of {bench}")
 
     # just some basic sanity checks that we are actually looking at the
     # same benchmark
@@ -652,36 +703,63 @@ proc produceComparison(cfg: Config, bench1, bench2: BenchTable) =
       let m1 = ms1.metricField
       let m2 = ms2.metricField
       let mf = $astToStr(metricField)
+
+      let ratio = m2.float / m1.float
+      let perc = formatPerformanceChange(m2.float, m1.float)
+      let percChange = (ratio - 1) * 100
+
+      # Add to our comparison entries if the difference is significant enough
+      var tup = (
+          benchmark: bench,
+          mtric: metric & "." & mf,
+          newVal: m1.float,
+          oldVal: m2.float,
+          diff: abs(m1 - m2).float,
+          ratio: ratio,
+          percChange: percChange,
+          isRegression: false,
+      )
+
       when typeof(m1) is float:
         if m1 > m2 * cfg.regressionThr: # regression detected!
-          let perc = formatFloat((m1 / m2) * 100.0 - 100.0, ffDecimal, precision = 2)
-          warnRed(&"Performance regression detected in `{bench}` for `" & mf & "` of `" & metric & "`! " &
-            "New benchmark is " & perc & "% worse than the old performance!")
+          warnRed(&"Metric: `" & mf & "` of `" & metric & "`: New is " & perc & "!")
+          tup.isRegression = true
+          comparisonEntries.add tup
         elif m1 < m2 * cfg.optimizationThr: # optimization detected!
-          let perc = formatFloat((m2 / m1) * 100.0 - 100.0, ffDecimal, precision = 2)
-          warnGreen(&"Performance improvement detected in `{bench}` for `" & mf & "` of `" & metric & "`! " &
-            "New benchmark is " & perc & "% better than the old performance!")
+          warnGreen(&"Metric: `" & mf & "` of `" & metric & "`: New is " & perc & "!")
+          comparisonEntries.add tup
       elif typeof(m1) is int:
         # compare only the number
         if m1 < m2: # less of it
-          warnGreen("`" & mf & &"` in `{bench}` of `" & metric & "` lower in main file. Main file: " &
-            $m1 & ", comparison " & $m2)
-        elif m1 > m2: # less of it
-          warnRed("`" & mf & &"` in `{bench}` of `" & metric & "` higher in main file. Main file: " &
-            $m1 & ", comparison " & $m2)
+          warnRed("Metric: `" & mf & "` of `" & metric & "`: Less in new. New: " & $m1 & ", old: " & $m2)
+          comparisonEntries.add tup
+        elif m1 > m2: # more of it
+          warnGreen("Metric: `" & mf & "` of `" & metric & "`: More in new. New: " & $m1 & ", old: " & $m2)
+          tup.isRegression = true
+          comparisonEntries.add tup
       else:
         error("Unexpected input type for field " & astToStr(metricField) & " of type: " & $typeof(m1))
 
     template compareMetric(field: untyped): untyped =
       compareMetricField(b1.field, b2.field, mean, astToStr(field))
       compareMetricField(b1.field, b2.field, median, astToStr(field))
-      compareMetricField(b1.field, b2.field, stdS, astToStr(field))
+      ## XXX: optionally show sample standard deviation?
+      # compareMetricField(b1.field, b2.field, stdS, astToStr(field))
       compareMetricField(b1.field, b2.field, outliers, astToStr(field))
 
     if lfPerformance in cfg.logFields:
       compareMetric(rTimes)
       compareMetric(uTimes)
       compareMetric(mem)
+
+  # Generate and output the performance comparison table
+  if comparisonEntries.len > 0:
+    bigSep(notice)
+    notice.print(cyan, "Performance Comparison Summary Table")
+    let table = generateComparisonTable(comparisonEntries).formatOrgTable()
+    notice("\n" & table)
+  else:
+    notice("No significant performance differences found.")
 
   # check for benches that exist in `bench2` but not in `bench1`
   let onlyIn2 = bench2.keys.toSeq.toSet - bench1.keys.toSeq.toSet
