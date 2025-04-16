@@ -262,6 +262,8 @@ proc individualPlots(cfg: Config, df: DataFrame, suffix: string = "") =
   plotAgainst(RTimeCol, "real_time" & suffix)
   plotAgainst(MemoryCol, "memory" & suffix)
 
+proc getErrorColumn(s: string): string = s & StdSuffix
+
 proc facetPlots(cfg: Config, df: DataFrame, suffix: string = "") =
   ## Create facet plots of the different plots
   let xScale = if cfg.log10: scale_x_log10()
@@ -292,14 +294,16 @@ proc facetPlots(cfg: Config, df: DataFrame, suffix: string = "") =
   block:
     let df = df.gather([MainTrace, PermTrace, MPTrace], "Type", "Value")
     proc plotAgainst(yCol, ySuf: string) =
-      let σCol = yCol & StdSuffix
+      let df = df.mutate(f{"yMin" ~ idx(yCol) - idx(getErrorColumn(yCol))},
+                         f{"yMax" ~ idx(yCol) + idx(getErrorColumn(yCol))})
+
       ggplot(df, aes("Value", yCol, color = DateCol)) +
         facet_wrap("Type", scales = "free") +
         facetMargin(0.5) +
         margin(right = 2.0, bottom = 1.5) +
         xlab(rotate = -30.0, alignTo = "right") +
         geom_point() +
-        geom_errorbar(aes = aes(yMin = f{idx(yCol) - idx(σCol)}, yMax = f{idx(yCol) + idx(σCol)})) +
+        geom_errorbar(aes = aes(yMin = "yMin", yMax = "yMax")) +
         legendPosition(0.5, 0.2) +
         xScale + yScale +
         ggsave(&"{cfg.plotPath}/traces_{ySuf}_facet.pdf")
@@ -317,8 +321,6 @@ proc assembleDf(tab: Table[Class, FitResult]): DataFrame =
     df[DateCol] = ver
     df["Type"] = tr
     result.add df
-
-proc getErrorColumn(s: string): string = s & StdSuffix
 
 proc plotFitAllTraces(cfg: Config, df: DataFrame, yCol: string, suffix: string = "") =
   ## Fits all traces for the given y column `yCol` and creates a plot for
