@@ -199,8 +199,8 @@
       }
     },
     "datamancer": {
-      "version": "0.5.0",
-      "vcsRevision": "47ba4d81bf240a7755b73bc48c1cec9b638d18ae",
+      "version": "0.5.1",
+      "vcsRevision": "ea8fa6cacd158b7e2ff9116521e0a5ee3aadc7d2",
       "url": "https://github.com/SciNim/datamancer",
       "downloadMethod": "git",
       "dependencies": [
@@ -208,7 +208,7 @@
         "arraymancer"
       ],
       "checksums": {
-        "sha1": "83cc3304abeb2c7a5b68a8edb8422c9642a70891"
+        "sha1": "c54db7077924522db8af5fe74f0bb850285332c6"
       }
     },
     "flatty": {
@@ -367,8 +367,8 @@
       }
     },
     "ggplotnim": {
-      "version": "0.7.3",
-      "vcsRevision": "3289dcf281a196c63a1a5bd423e741e6a5105d4a",
+      "version": "0.7.4",
+      "vcsRevision": "335adab3eaf8b95f8fddefe5428324422591f531",
       "url": "https://github.com/Vindaar/ggplotnim",
       "downloadMethod": "git",
       "dependencies": [
@@ -382,7 +382,7 @@
         "scinim"
       ],
       "checksums": {
-        "sha1": "ae51f51932d720c74b3c6b3269dfe8f3e991324a"
+        "sha1": "78634f560e60fff69e4ff95e201030e3d32a5e42"
       }
     },
     "mpfit": {
