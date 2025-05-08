@@ -1,3 +1,6 @@
+* v0.1.4
+- set errors to 1 if only single sample of a benchmark and warn
+- limit maximum number of function evals & warn if exceeded
 * v0.1.3
 - fix error bars in log plots (via dependencies)
 * v0.1.2
