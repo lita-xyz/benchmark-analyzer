@@ -134,6 +134,9 @@ type
     # Comparison config
     compare: string ## Another input file. If given, will produce a report comparing performance to the main `fname` input
 
+    # Fitting related
+    maxFuncEvals: int = 1000 ## Maximum number of function evaluations to perform before considering fit a failure
+
   Model = object
     fn: FuncProto[float]
     body: string ## stringified version of the function body
@@ -207,14 +210,24 @@ proc getFitFunction(fitFn: FitFunction): Model =
   of ffLogPlusLin: Model(fn: logPlusLin, body: getBody(logPlusLin))
   of ffLinear: Model(fn: linear, body: getBody(linear))
 
-proc fitData(cfg: Config, m: Model, xs, ys, ey: seq[float]): FitResult =
+proc fitConfig(cfg: Config): MpConfig =
+  ## Default configuration we use for fitting. Mostly default, but we restrict
+  ## the maximum number of iterations so that a run cannot loop infinitely anymore.
+  result = MpConfig(maxfev: cfg.maxFuncEvals)
+
+proc fitData(cfg: Config, m: Model, xs, ys, ey: seq[float],
+             class: tuple[vm, trace: string], yCol: string): FitResult =
   ## Perform a fit of `fitFn` given the data.
   let params = @[1.0, 1.0, 1.0]
   let (pRes, res) = fit(m.fn, params,
                         x = xs,
                         y = ys,
-                        ey = ey) # error is sample standard deviation
+                        ey = ey, # error is sample standard deviation
+                        config = some(cfg.fitConfig()))
   let resText = pretty(pRes, res)
+
+  if lfWarnings in cfg.logFields and res.status == MP_MAXITER:
+    warnRed(&"Fit did not converge before reaching max function evaluations in {class} of {yCol}!")
 
   if lfFitting in cfg.logFields:
     info("Fit result for fit function:")
@@ -350,7 +363,8 @@ proc plotFitAllTraces(cfg: Config, df: DataFrame, yCol: string, suffix: string =
       info(&"Fitting data for: {ver} -- {tr} against {yCol}")
     let fitRes = cfg.fitData(fn, subDf["Value", float].toSeq1D,
                              subDf[yCol, float].toSeq1D,
-                             subDf[getErrorColumn(yCol), float].toSeq1D)
+                             subDf[getErrorColumn(yCol), float].toSeq1D,
+                             class, yCol)
     fitTab[class] = fitRes
 
     let verStr = ver.sanitize()
@@ -835,6 +849,7 @@ when isMainModule:
     "traceSizes" : """Paths to the CSV files containing trace sizes for each benchmark program.
 First argument is for the main input and the second for the comparison input (if any). If only one
 argument given, will use the first input for both.
+    "maxFuncEvals" : "Maximum number of function evaluations to perform in fits before considering it a failure.",
 """,
     })
   app.setLogFields()
