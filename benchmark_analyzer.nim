@@ -535,7 +535,7 @@ proc parseTraceSizes(benchTab: var BenchTable, traceSizes: string) =
     bench.totalTrace = totalTrace
     benchTab[name] = bench
 
-proc benchToDf(name: string, bench: Benchmark): DataFrame =
+proc benchToDf(cfg: Config, name: string, bench: Benchmark): DataFrame =
   ## Returns a single row DF containing the data of the given benchmark
   ## Of the `MetricStats` currently only the mean and sample standard
   ## deviation are included
@@ -558,16 +558,21 @@ proc benchToDf(name: string, bench: Benchmark): DataFrame =
       # 1. the main value (mean)
       result[col] = @[val.mean]
       # 2. sample standard deviation
-      result[getErrorColumn(col)] = @[val.stdS]
+      if val.raw.len > 1:
+        result[getErrorColumn(col)] = @[val.stdS]
+      else:
+        if lfWarnings in cfg.logFields:
+          warnRed(&"{name} only has one sample. Setting errors to 1")
+        result[getErrorColumn(col)] = @[1.0]
     else: # else use as is
       result[col] = @[val]
 
-proc assembleDf(benchTab: BenchTable): DataFrame =
+proc assembleDf(cfg: Config, benchTab: BenchTable): DataFrame =
   ## Assembles a DataFrame from the `BenchTable`.
   var dfs = newSeq[DataFrame]()
   for (name, bench) in pairs(benchTab):
     # create a mini DF
-    dfs.add benchToDf(name, bench)
+    dfs.add cfg.benchToDf(name, bench)
   result = assignStack(dfs)
 
 proc producePlots(cfg: Config, df: DataFrame) =
@@ -793,7 +798,7 @@ proc main(cfg: Config) =
     benchTab.parseTraceSizes(cfg.traceSizes[0])
 
     # For the plots we need to assemble a DF from the `benchTab`
-    var df = assembleDf(benchTab)
+    var df = cfg.assembleDf(benchTab)
 
     if cfg.compare.len > 0:
       # also read the comparison file
@@ -805,7 +810,7 @@ proc main(cfg: Config) =
       cfg.produceComparison(benchTab, benchCTab)
 
       # to also plot these, add them to the DF. They will differ by their `DateCol`
-      df.add assembleDf(benchCTab)
+      df.add cfg.assembleDf(benchCTab)
 
     cfg.producePlots(df)
   else:
