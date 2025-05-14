@@ -390,7 +390,7 @@ proc plotFitAllTraces(cfg: Config, df: DataFrame, yCol: string, suffix: string =
       xlab(tr) +
       xScale + yScale +
       ggtitle(&"{DateCol}: {ver}") +
-      ggsave(&"{cfg.plotPath}/{trStr}_{verStr}_with_fit{suffix}.pdf")
+      ggsave(&"{cfg.plotPath}/{trStr}_{verStr}_{yCol}_with_fit{suffix}.pdf")
 
   let dfFits = assembleDf(fitTab)
   # Cmobined plot of all the fits
