@@ -600,20 +600,18 @@ proc producePlots(cfg: Config, df: DataFrame) =
   let dfP = df.filter(f{`bench` in [$bkIterFibonacci, $bkRecursiveFibonacci]})
   # split by serial and parallel versions
   for (tup, subDf) in groups(dfP.group_by("isSerial")):
-
     let suffix = "_isSerial_" & tup[0][1].toStr
 
+    ## XXX: for individual plots split by date / commit!
     cfg.individualPlots(subDf, suffix)
 
     # 2. Facet plots
-    cfg.facetPlots(df, suffix)
+    cfg.facetPlots(subDf, suffix)
 
     # 3. Individual plots and facet plots of all traces
-    cfg.plotFitAllTraces(df, UTimeCol, suffix)
-    cfg.plotFitAllTraces(df, RTimeCol, suffix)
-    cfg.plotFitAllTraces(df, MemoryCol, suffix)
-
-
+    cfg.plotFitAllTraces(subDf, UTimeCol, suffix)
+    cfg.plotFitAllTraces(subDf, RTimeCol, suffix)
+    cfg.plotFitAllTraces(subDf, MemoryCol, suffix)
 
 # First, add this import to benchmark_analyzer.nim
 # Define a structure to hold comparison data
