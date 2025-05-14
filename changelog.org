@@ -1,3 +1,10 @@
+* v0.1.5
+- fix bug which caused bad fits, due to passing the wrong DF into the
+  functions performing fits
+- adjust output file name for individual fit plots to be unique
+- make sure the ~fit~ function receives as many starting parameters as
+  the fit function needs
+- improve look of facet plot of all fits
 * v0.1.4
 - set errors to 1 if only single sample of a benchmark and warn
 - limit maximum number of function evals & warn if exceeded
