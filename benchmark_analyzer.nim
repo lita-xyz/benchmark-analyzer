@@ -95,6 +95,8 @@ type
   FitFunction = enum
     ffLogPlusLin = "logLin"
     ffLinear = "linear"
+    ffSquare = "square"
+    ffExp = "exp"
 
   LogFields = enum
     lfProcessing, lfWarnings, lfPerformance, lfFitting, lfDetailedMetrics
@@ -206,10 +208,18 @@ proc logPlusLin(p: seq[float], x: float): float =
 proc linear(p: seq[float], x: float): float =
   result = p[0] * x + p[1]
 
+proc square(p: seq[float], x: float): float =
+  result = p[0] * x * x + p[1] * x + p[2]
+
+proc exp(p: seq[float], x: float): float =
+  result = p[0] * exp(p[1] * x) + p[2]
+
 proc getFitFunction(fitFn: FitFunction): Model =
   case fitFn
   of ffLogPlusLin: Model(fn: logPlusLin, body: getBody(logPlusLin), numParams: 3)
   of ffLinear: Model(fn: linear, body: getBody(linear), numParams: 2)
+  of ffSquare: Model(fn: square, body: getBody(square), numParams: 3)
+  of ffExp: Model(fn: exp, body: getBody(exp), numParams: 3)
 
 proc fitConfig(cfg: Config): MpConfig =
   ## Default configuration we use for fitting. Mostly default, but we restrict
