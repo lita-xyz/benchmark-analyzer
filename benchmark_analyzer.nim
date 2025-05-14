@@ -139,6 +139,7 @@ type
 
   Model = object
     fn: FuncProto[float]
+    numParams: int ## Number of parameters the function takes
     body: string ## stringified version of the function body
 
   ## Statistics about a specific metric. This can be 'Real Time', 'User Time', 'Memory', ...
@@ -207,8 +208,8 @@ proc linear(p: seq[float], x: float): float =
 
 proc getFitFunction(fitFn: FitFunction): Model =
   case fitFn
-  of ffLogPlusLin: Model(fn: logPlusLin, body: getBody(logPlusLin))
-  of ffLinear: Model(fn: linear, body: getBody(linear))
+  of ffLogPlusLin: Model(fn: logPlusLin, body: getBody(logPlusLin), numParams: 3)
+  of ffLinear: Model(fn: linear, body: getBody(linear), numParams: 2)
 
 proc fitConfig(cfg: Config): MpConfig =
   ## Default configuration we use for fitting. Mostly default, but we restrict
@@ -218,7 +219,7 @@ proc fitConfig(cfg: Config): MpConfig =
 proc fitData(cfg: Config, m: Model, xs, ys, ey: seq[float],
              class: tuple[vm, trace: string], yCol: string): FitResult =
   ## Perform a fit of `fitFn` given the data.
-  let params = @[1.0, 1.0, 1.0]
+  let params = (0 ..< m.numParams).toSeq().mapIt(1.0) # set all parameters to 1 initally
   let (pRes, res) = fit(m.fn, params,
                         x = xs,
                         y = ys,
