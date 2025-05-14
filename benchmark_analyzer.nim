@@ -394,17 +394,19 @@ proc plotFitAllTraces(cfg: Config, df: DataFrame, yCol: string, suffix: string =
 
   let dfFits = assembleDf(fitTab)
   # Cmobined plot of all the fits
+  let st = suffix.strip(chars = {'_'}).split("_").join(": ")
   ggplot(df, aes("Value", yCol, color = DateCol)) +
     geom_point() +
     geom_errorbar(aes = aes(x = "Value", yMin = "yMin", yMax = "yMax")) +
     geom_line(data = dfFits, aes = aes("xs", "ys", color = DateCol)) +
     facet_wrap("Type", scales = "free") +
     facetMargin(0.525) +
-    margin(right = 0.001, bottom = 1.5) +
-    xlab(rotate = -30.0, alignTo = "right") +
+    margin(right = 0.001, bottom = 0.5) +
+    xlab(rotate = -30.0, alignTo = "right", margin = -0.25) +
     legendPosition(0.55, 0.2) +
     xScale + yScale +
     xlab("Trace size") +
+    ggtitle(&"All traces for '{yCol}' and '{st}'") +
     ggsave(&"{cfg.plotPath}/all_traces_{yCol.sanitize()}_with_fit{suffix}.pdf")
 
 
