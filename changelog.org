@@ -1,3 +1,7 @@
+* v0.1.6
+- restructure fitting logic to be independent of plotting to allow for
+  easier generation of facet plots. Not only for all traces against
+  each metric, but now also for all metrics against each trace.
 * v0.1.5
 - fix bug which caused bad fits, due to passing the wrong DF into the
   functions performing fits
