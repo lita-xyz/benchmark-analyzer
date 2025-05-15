@@ -84,12 +84,15 @@ template bigSep(fn, color: untyped): untyped =
 type
   ## Helper to store the fit results of a single VM version + trace
   FitResult = object
-    df: DataFrame
-    ps: seq[float] ## final fit parameters
-    res: MpResult ## full fit results
+    xs: seq[float]   ## x input data
+    ys: seq[float]   ## y input data
+    ey: seq[float]   ## y err input data
+    model: Model     ## The fit model used
+    pRes: seq[float] ## final fit parameters
+    res: MpResult    ## full fit results
 
   ## a distinct class label for VM version & the trace
-  Class = tuple[vm, trace: string]
+  Class = tuple[vm, trace, metric: string]
 
   ## Implemented fit functions
   FitFunction = enum
@@ -227,7 +230,7 @@ proc fitConfig(cfg: Config): MpConfig =
   result = MpConfig(maxfev: cfg.maxFuncEvals)
 
 proc fitData(cfg: Config, m: Model, xs, ys, ey: seq[float],
-             class: tuple[vm, trace: string], yCol: string): FitResult =
+             class: Class): FitResult =
   ## Perform a fit of `fitFn` given the data.
   let params = (0 ..< m.numParams).toSeq().mapIt(1.0) # set all parameters to 1 initally
   let (pRes, res) = fit(m.fn, params,
@@ -238,7 +241,7 @@ proc fitData(cfg: Config, m: Model, xs, ys, ey: seq[float],
   let resText = pretty(pRes, res)
 
   if lfWarnings in cfg.logFields and res.status == MP_MAXITER:
-    warnRed(&"Fit did not converge before reaching max function evaluations in {class} of {yCol}!")
+    warnRed(&"Fit did not converge before reaching max function evaluations in {class}!")
 
   if lfFitting in cfg.logFields:
     info("Fit result for fit function:")
@@ -247,12 +250,24 @@ proc fitData(cfg: Config, m: Model, xs, ys, ey: seq[float],
     info(resText)
     smallSep(info)
 
-  # Compute values for the function based on fit results
-  let xs = linspace(xs.min, xs.max, 1000)
-  let ys = xs.mapIt(m.fn(pRes, it))
-  result = FitResult(df: toDf({"xs" : xs, "ys" : ys}),
-                     ps: pRes,
+  result = FitResult(xs: xs, ys: ys, ey: ey,
+                     model: m,
+                     pRes: pRes,
                      res: res)
+
+proc toFitDf(fr: FitResult): DataFrame =
+  ## Computes a DF of the final parameters applied to the fit function
+  ## to plot the final fit result
+  # Compute values for the function based on fit results
+  let xs = linspace(fr.xs.min, fr.xs.max, 1000)
+  let ys = xs.mapIt(fr.model.fn(fr.pRes, it))
+  result = toDf({"xs" : xs, "ys" : ys})
+
+proc toInputDf(fr: FitResult): DataFrame =
+  ## Creates the DF for the input data, also computing `yMin`, `yMax`
+  result = toDf({"xs" : fr.xs, "ys" : fr.ys, "ey" : fr.ey})
+    .mutate(f{"yMin" ~ `ys` - `ey`},
+            f{"yMax" ~ `ys` + `ey`})
 
 proc sanitize(s: string): string =
   ## sanitizes the string to be sane for a file name.
@@ -336,78 +351,123 @@ proc facetPlots(cfg: Config, df: DataFrame, suffix: string = "") =
     plotAgainst(RTimeCol, "real_time" & suffix)
     plotAgainst(MemoryCol, "space" & suffix)
 
-proc assembleDf(tab: Table[Class, FitResult]): DataFrame =
+proc assembleDf(tab: Table[Class, FitResult]): tuple[inputDf, fitDf: DataFrame] =
   ## Assembles all individual fitting result DFs to a single DF
-  result = newDataFrame()
+  result.inputDf = newDataFrame()
+  result.fitDf = newDataFrame()
   for (tup, fitRes) in pairs(tab):
-    let (ver, tr) = tup
-    var df = fitRes.df
+    let (ver, tr, m) = tup
+    var df = fitRes.toFitDf()
+    df["Metric"] = m
     df[DateCol] = ver
-    df["Type"] = tr
-    result.add df
+    df["Trace"] = tr
+    result.fitDf.add df
 
-proc plotFitAllTraces(cfg: Config, df: DataFrame, yCol: string, suffix: string = "") =
-  ## Fits all traces for the given y column `yCol` and creates a plot for
-  ## each fit individually, which includes the fit results as an annotation.
-  ##
-  ## Finally produces a combined facet plot of all traces against the
-  ## `y` column and split by the different VM versions.
-  let df = df.gather([MainTrace, PermTrace, MPTrace], "Type", "Value")
-    .mutate(f{"yMin" ~ idx(yCol) - idx(getErrorColumn(yCol))},
-            f{"yMax" ~ idx(yCol) + idx(getErrorColumn(yCol))})
+    var dfIn = fitRes.toInputDf()
+    dfIn["Metric"] = m
+    dfIn[DateCol] = ver
+    dfIn["Trace"] = tr
+    result.inputDf.add dfIn
 
+proc fitAll(cfg: Config, df: DataFrame): Table[Class, FitResult] =
+  ## Performs the fits of:
+  ## - all traces (main, perm, total)
+  ## - against all metrics (user time, real time, memory)
+  ## and returns a table of the `Class` with the fit results.
+  result = initTable[Class, FitResult]()
+
+  const metrics = [UTimeCol, RTimeCol, MemoryCol]
+  const traces = [MainTrace, PermTrace, MPTrace]
+  let dfG = df.gather(traces, "xCol", "xs")
+    .gather(metrics, "yCol", "ys")
+  # First iterate over all the traces
+  for (tup, subDf) in groups(dfG.group_by(["xCol", "yCol", "Date"])):
+    #showBrowser(subDf, "/tmp/xycoldf.html")
+    let trace = tup[0][1].toStr()
+    let metric = tup[1][1].toStr()
+    let ver = tup[2][1].toStr()
+    let eyCol = metric.getErrorColumn() # get the error col
+
+    ## Perform the fit for this class
+    let class = (vm: ver, trace: trace, metric: metric)
+    let fn = getFitFunction(cfg.fitFunc)
+    if lfFitting in cfg.logFields:
+      bigSep(info)
+      info(&"Fitting data for: {ver} -- {trace} against {metric}")
+
+    let xs = subDf["xs", float].toSeq1D()
+    let ys = subDf["ys", float].toSeq1D()
+    let ey = subDf[eyCol, float].toSeq1D()
+    let fitRes = cfg.fitData(fn, xs, ys, ey, class)
+    result[class] = fitRes
+
+proc plotAllFits(cfg: Config, fitTab: Table[Class, FitResult], suffix: string) =
+  ## Creates plots of all individual fits with an annotation of the fit results
   let xScale = if cfg.log10: scale_x_log10()
                else: scale_x_continuous()
   let yScale = if cfg.log10: scale_y_log10()
                else: scale_y_continuous()
 
-  var fitTab = initTable[Class, FitResult]()
-  for (tup, subDf) in groups(df.group_by([DateCol, "Type"])):
-    ## Fit each trace & VM version
-    let ver = tup[0][1].toStr # corresponds to `DateCol`
-    let tr = tup[1][1].toStr  # corresponds to `"Type"`
-    let class = (vm: ver, trace: tr)
-
-    let fn = getFitFunction(cfg.fitFunc)
-    if lfFitting in cfg.logFields:
-      bigSep(info)
-      info(&"Fitting data for: {ver} -- {tr} against {yCol}")
-    let fitRes = cfg.fitData(fn, subDf["Value", float].toSeq1D,
-                             subDf[yCol, float].toSeq1D,
-                             subDf[getErrorColumn(yCol), float].toSeq1D,
-                             class, yCol)
-    fitTab[class] = fitRes
-
+  for k, fr in fitTab:
+    let (ver, trace, metric) = k
     let verStr = ver.sanitize()
-    let trStr = tr.sanitize()
+    let trStr = trace.sanitize()
 
+    # construct a DF for the fit result & the input data
+    let df = toInputDf(fr)
+    let dfFit = toFitDf(fr)
     # Individual plot of this fit & data
-    ggplot(subDf, aes("Value", yCol)) +
+    ggplot(df, aes("xs", "ys")) +
       geom_point() +
-      geom_errorbar(aes = aes(x = "Value", yMin = "yMin", yMax = "yMax")) +
-      geom_line(data = fitRes.df, aes = aes("xs", "ys")) +
-      annotate(left = 0.05, bottom = 0.45, text = pretty(fitRes.ps, fitRes.res)) +
-      xlab(tr) +
+      geom_errorbar(aes = aes(x = "xs", yMin = "yMin", yMax = "yMax")) +
+      geom_line(data = dfFit, aes = aes("xs", "ys")) +
+      annotate(left = 0.05, bottom = 0.45, text = pretty(fr.pRes, fr.res)) +
+      xlab(trace) +
       xScale + yScale +
       ggtitle(&"{DateCol}: {ver}") +
-      ggsave(&"{cfg.plotPath}/{trStr}_{verStr}_{yCol}_with_fit{suffix}.pdf")
+      ggsave(&"{cfg.plotPath}/{trStr}_{metric}_{verStr}_with_fit{suffix}.pdf")
 
-  let dfFits = assembleDf(fitTab)
-  # Cmobined plot of all the fits
+proc plotAllFacets(cfg: Config, df: DataFrame, fitTab: Table[Class, FitResult], suffix: string = "") =
+  ## Produces combined facet plots of all traces / all metrics against
+  ## a single metric / trace.
+  let xScale = if cfg.log10: scale_x_log10()
+               else: scale_x_continuous()
+  let yScale = if cfg.log10: scale_y_log10()
+               else: scale_y_continuous()
   let st = suffix.strip(chars = {'_'}).split("_").join(": ")
-  ggplot(df, aes("Value", yCol, color = DateCol)) +
-    geom_point() +
-    geom_errorbar(aes = aes(x = "Value", yMin = "yMin", yMax = "yMax")) +
-    geom_line(data = dfFits, aes = aes("xs", "ys", color = DateCol)) +
-    facet_wrap("Type", scales = "free") +
-    facetMargin(0.525) +
-    margin(right = 0.001, bottom = 0.5) +
-    xlab(rotate = -30.0, alignTo = "right", margin = -0.25) +
-    legendPosition(0.55, 0.2) +
-    xScale + yScale +
-    xlab("Trace size") +
-    ggtitle(&"All traces for '{yCol}' and '{st}'") +
-    ggsave(&"{cfg.plotPath}/all_traces_{yCol.sanitize()}_with_fit{suffix}.pdf")
+
+  proc makePlot(cfg: Config, df, dfFits: DataFrame, facetCol, xlab, ylab, tlab, typ, prefix, suffix: string) =
+    ggplot(df, aes("xs", "ys", color = DateCol)) +
+      geom_point() +
+      geom_errorbar(aes = aes(x = "xs", yMin = "yMin", yMax = "yMax")) +
+      geom_line(data = dfFits, aes = aes("xs", "ys", color = DateCol)) +
+      facet_wrap(facetCol, scales = "free") +
+      facetMargin(0.525) +
+      margin(right = 0.001, bottom = 0.5) +
+      xlab(rotate = -30.0, alignTo = "right", margin = -0.25) +
+      legendPosition(0.55, 0.2) +
+      xScale + yScale +
+      xlab(xlab) + ylab(ylab) +
+      ggtitle(&"All {typ} for '{tlab}' for '{st}'") +
+      ggsave(&"{cfg.plotPath}/{prefix}_{xlab.sanitize()}_{ylab.sanitize()}_with_fit{suffix}.pdf")
+
+
+  ## Prepare the DFs for the plots
+  let (dfInputs, dfFits) = assembleDf(fitTab)
+  block AllTraces: # all traces in one facet, one plot per metric
+    const filterBy = "Metric"
+    for (tup, subDf) in groups(dfInputs.group_by("Metric")):
+      let metric = tup[0][1].toStr()
+      let dfF = dfFits.filter(f{idx(filterBy) == metric})
+      cfg.makePlot(subDf, dfF,
+                   "Trace", "Trace size", metric, metric, "traces", "all_traces", suffix)
+  block AllMetrics: # all metrics in one facet, one plot per trace
+    const filterBy = "Trace"
+    for (tup, subDf) in groups(dfInputs.group_by("Trace")):
+      let trace = tup[0][1].toStr()
+      let dfF = dfFits.filter(f{idx(filterBy) == trace})
+      cfg.makePlot(subDf, dfF,
+                   "Metric", trace, "Metric value", trace, "metrics", "all_metrics", suffix)
 
 
 func aggregate(cfg: Config, s: seq[float]): MetricStats =
@@ -610,10 +670,13 @@ proc producePlots(cfg: Config, df: DataFrame) =
     # 2. Facet plots
     cfg.facetPlots(subDf, suffix)
 
-    # 3. Individual plots and facet plots of all traces
-    cfg.plotFitAllTraces(subDf, UTimeCol, suffix)
-    cfg.plotFitAllTraces(subDf, RTimeCol, suffix)
-    cfg.plotFitAllTraces(subDf, MemoryCol, suffix)
+    # 3. perform all fits
+    let fitTab = cfg.fitAll(subDf)
+    # 4. create plots for every fit
+    cfg.plotAllFits(fitTab, suffix)
+
+    # 5. Facet plots of all traces & all metrics
+    cfg.plotAllFacets(subDf, fitTab, suffix)
 
 # First, add this import to benchmark_analyzer.nim
 # Define a structure to hold comparison data
@@ -825,20 +888,8 @@ proc main(cfg: Config) =
 
     cfg.producePlots(df)
   else:
-
-    # 0. read the CSV file
     let df = readCsv(cfg.fname)
-
-    # 1. Start with individual plots
-    cfg.individualPlots(df)
-
-    # 2. Facet plots
-    cfg.facetPlots(df)
-
-    # 3. Individual plots and facet plots of all traces
-    cfg.plotFitAllTraces(df, UTimeCol)
-    cfg.plotFitAllTraces(df, RTimeCol)
-    cfg.plotFitAllTraces(df, MemoryCol)
+    cfg.producePlots(df)
 
 when isMainModule:
 
