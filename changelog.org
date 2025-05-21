@@ -1,3 +1,7 @@
+* v0.1.7
+- fix issue with fits not converging due to effective zero uncertainty
+  if all iterations in a benchmark produce the same numerical value
+  for the printed precision used in the CSV files.
 * v0.1.6
 - restructure fitting logic to be independent of plotting to allow for
   easier generation of facet plots. Not only for all traces against
