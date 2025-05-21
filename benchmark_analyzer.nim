@@ -224,6 +224,17 @@ proc getFitFunction(fitFn: FitFunction): Model =
   of ffSquare: Model(fn: square, body: getBody(square), numParams: 3)
   of ffExp: Model(fn: exp, body: getBody(exp), numParams: 3)
 
+proc minimumError(field: string): float =
+  ## Returns the minimum uncertainty that is associated to the different
+  ## metrics we have.
+  ## We use half the value of the measurement accuracy.
+  case field
+  of "rTimes": result = 5e-5 # CSV usually contains 4 decimal places, e.g.: 0.2520
+  of "uTimes": result = 5e-5 # CSV usually contains 4 decimal places, e.g.: 0.2350
+  of "mem":    result = 5e-3 # CSV usually contains 2 decimal places, e.g.: 14.24
+  else:
+    raiseAssert "Invalid input: " & field
+
 proc fitConfig(cfg: Config): MpConfig =
   ## Default configuration we use for fitting. Mostly default, but we restrict
   ## the maximum number of iterations so that a run cannot loop infinitely anymore.
@@ -632,7 +643,10 @@ proc benchToDf(cfg: Config, name: string, bench: Benchmark): DataFrame =
       result[col] = @[val.mean]
       # 2. sample standard deviation
       if val.raw.len > 1:
-        result[getErrorColumn(col)] = @[val.stdS]
+        # NOTE: float comparison with 0 is fine & correct here. Want to guard against all values
+        # being identical strings in input CSV. And we only need to avoid exact 0 errors for the fit.
+        let v = if val.stdS == 0.0: minimumError(field) else: val.stdS
+        result[getErrorColumn(col)] = @[v]
       else:
         if lfWarnings in cfg.logFields:
           warnRed(&"{name} only has one sample. Setting errors to 1")
