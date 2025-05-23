@@ -266,11 +266,12 @@ proc fitData(cfg: Config, m: Model, xs, ys, ey: seq[float],
                      pRes: pRes,
                      res: res)
 
-proc toFitDf(fr: FitResult): DataFrame =
+proc toFitDf(fr: FitResult, log10: bool): DataFrame =
   ## Computes a DF of the final parameters applied to the fit function
   ## to plot the final fit result
   # Compute values for the function based on fit results
-  let xs = linspace(fr.xs.min, fr.xs.max, 1000)
+  let xs = if log10: logspace(log10(fr.xs.min), log10(fr.xs.max), 1000)
+           else: linspace(fr.xs.min, fr.xs.max, 1000)
   let ys = xs.mapIt(fr.model.fn(fr.pRes, it))
   result = toDf({"xs" : xs, "ys" : ys})
 
@@ -362,13 +363,13 @@ proc facetPlots(cfg: Config, df: DataFrame, suffix: string = "") =
     plotAgainst(RTimeCol, "real_time" & suffix)
     plotAgainst(MemoryCol, "space" & suffix)
 
-proc assembleDf(tab: Table[Class, FitResult]): tuple[inputDf, fitDf: DataFrame] =
+proc assembleDf(tab: Table[Class, FitResult], log10: bool): tuple[inputDf, fitDf: DataFrame] =
   ## Assembles all individual fitting result DFs to a single DF
   result.inputDf = newDataFrame()
   result.fitDf = newDataFrame()
   for (tup, fitRes) in pairs(tab):
     let (ver, tr, m) = tup
-    var df = fitRes.toFitDf()
+    var df = fitRes.toFitDf(log10)
     df["Metric"] = m
     df[DateCol] = ver
     df["Trace"] = tr
@@ -426,7 +427,7 @@ proc plotAllFits(cfg: Config, fitTab: Table[Class, FitResult], suffix: string) =
 
     # construct a DF for the fit result & the input data
     let df = toInputDf(fr)
-    let dfFit = toFitDf(fr)
+    let dfFit = toFitDf(fr, cfg.log10)
     # Individual plot of this fit & data
     ggplot(df, aes("xs", "ys")) +
       geom_point() +
@@ -464,7 +465,7 @@ proc plotAllFacets(cfg: Config, df: DataFrame, fitTab: Table[Class, FitResult], 
 
 
   ## Prepare the DFs for the plots
-  let (dfInputs, dfFits) = assembleDf(fitTab)
+  let (dfInputs, dfFits) = assembleDf(fitTab, cfg.log10)
   block AllTraces: # all traces in one facet, one plot per metric
     const filterBy = "Metric"
     for (tup, subDf) in groups(dfInputs.group_by("Metric")):
