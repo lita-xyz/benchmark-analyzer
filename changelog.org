@@ -1,3 +1,10 @@
+* v0.1.8
+- use ~logspace~ for log-log plots for linear points in log space
+- fix ratio of new and old value for table when compared to terminal
+  output. In the terminal output we used ~new/old~ while for the table
+  we still used ~old/new~. Now we use ~new/old~ for all outputs. This
+  means a negative percentage change is a performance improvement (or
+  memory reduction) while positive number is a regression.
 * v0.1.7
 - fix issue with fits not converging due to effective zero uncertainty
   if all iterations in a benchmark produce the same numerical value
