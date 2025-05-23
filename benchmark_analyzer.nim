@@ -709,7 +709,7 @@ type
 # Add this function to produce the comparison table
 proc generateComparisonTable(entries: seq[ComparisonEntry]): string =
   # Sort entries: regressions first, then by percentage difference magnitude
-  var sortedEntries = entries.sortedByIt(it.ratio).reversed
+  var sortedEntries = entries.sortedByIt(it.ratio)
 
   # Generate the table
   result = "** Performance Comparison Summary\n\n"
@@ -814,7 +814,7 @@ proc produceComparison(cfg: Config, bench1, bench2: BenchTable) =
       let m2 = ms2.metricField
       let mf = $astToStr(metricField)
 
-      let ratio = m2.float / m1.float
+      let ratio = m1.float / m2.float
       let perc = formatPerformanceChange(m2.float, m1.float)
       let percChange = (ratio - 1) * 100
 
